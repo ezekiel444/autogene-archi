@@ -1,0 +1,35 @@
+{
+  "id": "bpmn-default",
+  "name": "Default BPMN Diagram",
+  "type": "diagram",
+  "subType": "bpmn",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "start-end-events",
+        "description": "Include explicit start event (circle) and end event (bold circle) nodes"
+      },
+      {
+        "constraint": "gateway-notation",
+        "description": "Use diamond shapes for gateways with labels indicating exclusive (XOR), parallel (AND), or inclusive (OR) logic"
+      },
+      {
+        "constraint": "swim-lanes",
+        "description": "Organize activities into swim lanes representing different roles or departments"
+      },
+      {
+        "constraint": "task-naming",
+        "description": "Name tasks with verb-noun format (e.g., 'Review Application', 'Approve Request')"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "left-to-right-flow",
+        "description": "Use left-to-right (LR) direction for process flow to match reading direction"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

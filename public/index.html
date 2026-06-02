@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Diagram &amp; Document Generator</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <h1 class="app-title">AI Diagram &amp; Document Generator</h1>
+      <p class="app-subtitle">Describe what you need in natural language — get diagrams or documents instantly.</p>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Mode Toggle -->
+    <div class="mode-toggle" role="tablist" aria-label="Generation mode">
+      <button
+        class="mode-tab active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panel-diagram"
+        id="tab-diagram"
+        data-mode="diagram"
+      >
+        Generate Diagram
+      </button>
+      <button
+        class="mode-tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-document"
+        id="tab-document"
+        data-mode="document"
+      >
+        Generate Document
+      </button>
+    </div>
+
+    <!-- Generation Form -->
+    <form id="generation-form" class="generation-card" aria-label="Generation request form">
+      <!-- Prompt Input -->
+      <div class="form-group prompt-group">
+        <label for="prompt-input" class="form-label">Describe what you need</label>
+        <textarea
+          id="prompt-input"
+          name="prompt"
+          class="prompt-textarea"
+          placeholder="e.g. Create a flowchart showing a user login process with email verification..."
+          rows="6"
+          maxlength="10000"
+          aria-describedby="prompt-counter prompt-error"
+          required
+        ></textarea>
+        <div class="prompt-meta">
+          <span id="prompt-error" class="validation-error" role="alert" aria-live="polite"></span>
+          <span id="prompt-counter" class="char-counter" aria-live="polite">0 / 10,000</span>
+        </div>
+      </div>
+
+      <!-- File Attachment Area -->
+      <div class="form-group">
+        <label class="form-label">Attachments <span class="label-hint">(optional, max 5 files, 10 MB each)</span></label>
+        <div
+          id="drop-zone"
+          class="drop-zone"
+          role="region"
+          aria-label="File upload drop zone"
+          tabindex="0"
+          aria-describedby="drop-zone-hint"
+        >
+          <div class="drop-zone-content">
+            <svg class="drop-zone-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p id="drop-zone-hint">Drag &amp; drop files here or <button type="button" id="file-picker-btn" class="file-picker-btn">browse</button></p>
+            <p class="drop-zone-formats">PNG, JPEG, PDF, TXT, MD, source code files</p>
+          </div>
+          <input
+            type="file"
+            id="file-input"
+            class="file-input-hidden"
+            multiple
+            accept=".png,.jpeg,.jpg,.pdf,.txt,.md,.py,.js,.ts,.java,.c,.cpp,.go,.rb,.rs,.html,.css,.json,.yaml,.yml,.xml,.sh"
+            aria-label="File attachment input"
+          />
+        </div>
+        <ul id="file-list" class="file-list" aria-label="Attached files" role="list"></ul>
+        <span id="attachment-error" class="validation-error" role="alert" aria-live="polite"></span>
+      </div>
+
+      <!-- Options Row -->
+      <div class="options-row">
+        <!-- Template Selection -->
+        <div class="form-group">
+          <label for="template-select" class="form-label">Template</label>
+          <select id="template-select" name="templateId" class="form-select" aria-label="Select a template">
+            <option value="">None (free-form)</option>
+          </select>
+        </div>
+
+        <!-- Diagram Type (shown in diagram mode) -->
+        <div class="form-group" id="diagram-type-group">
+          <label for="diagram-type-select" class="form-label">Diagram Type</label>
+          <select id="diagram-type-select" name="diagramType" class="form-select" aria-label="Select diagram type">
+            <option value="">Auto-detect</option>
+            <option value="flowchart">Flowchart</option>
+            <option value="er-diagram">ER Diagram</option>
+            <option value="cloud-architecture">Cloud Architecture</option>
+            <option value="sequence">Sequence Diagram</option>
+            <option value="bpmn">BPMN</option>
+            <option value="class-diagram">Class Diagram</option>
+            <option value="network">Network Diagram</option>
+            <option value="state-diagram">State Diagram</option>
+            <option value="data-flow">Data Flow</option>
+          </select>
+        </div>
+
+        <!-- Output Format (shown in diagram mode) -->
+        <div class="form-group" id="output-format-group">
+          <label class="form-label">Output Format</label>
+          <div class="radio-group" role="radiogroup" aria-label="Output format">
+            <label class="radio-label">
+              <input type="radio" name="outputFormat" value="mermaid" checked>
+              <span class="radio-text">Mermaid</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="outputFormat" value="plantuml">
+              <span class="radio-text">PlantUML</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate Button -->
+      <div class="form-actions">
+        <button type="submit" id="generate-btn" class="generate-btn" aria-label="Generate output">
+          <span class="btn-text">Generate</span>
+          <span class="btn-spinner" aria-hidden="true" hidden>
+            <svg class="spinner-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="20"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </form>
+
+    <!-- Results Area -->
+    <section id="results-section" class="results-section" hidden aria-label="Generation results">
+      <div class="results-header">
+        <h2 class="results-title">Generated Output</h2>
+        <div class="results-meta">
+          <span id="result-type-badge" class="badge"></span>
+          <span id="result-format-badge" class="badge badge-secondary"></span>
+        </div>
+      </div>
+
+      <!-- Diagram Preview Panel (hero position — appears first) -->
+      <div id="diagram-preview-section" class="diagram-preview-panel" hidden>
+        <div class="diagram-preview-header">
+          <h3 class="diagram-preview-title">Diagram Preview</h3>
+          <div class="diagram-preview-controls">
+            <button type="button" id="zoom-in-btn" class="diagram-control-btn" aria-label="Zoom in" title="Zoom in">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <line x1="11" y1="8" x2="11" y2="14"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+            <button type="button" id="zoom-out-btn" class="diagram-control-btn" aria-label="Zoom out" title="Zoom out">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </button>
+            <button type="button" id="zoom-reset-btn" class="diagram-control-btn" aria-label="Reset zoom" title="Reset zoom and pan">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+            <span id="zoom-level-indicator" class="zoom-level-indicator" aria-live="polite">100%</span>
+            <div class="diagram-export-controls">
+              <button type="button" id="export-svg-btn" class="diagram-export-btn" title="Export as SVG">SVG</button>
+              <button type="button" id="export-png-btn" class="diagram-export-btn" title="Export as PNG">PNG</button>
+              <button type="button" id="export-jpg-btn" class="diagram-export-btn" title="Export as JPG">JPG</button>
+            </div>
+          </div>
+        </div>
+        <!-- Error Banner -->
+        <div id="diagram-error-banner" class="diagram-error-banner" hidden role="alert" aria-live="polite">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span id="diagram-error-message"></span>
+        </div>
+        <!-- Diagram Render Container with pan support -->
+        <div id="diagram-preview-viewport" class="diagram-preview-viewport">
+          <div id="diagram-preview-canvas" class="diagram-preview-canvas">
+            <div id="diagram-preview" class="diagram-preview-content"></div>
+          </div>
+        </div>
+        <!-- Fallback Raw Code Display -->
+        <pre id="diagram-fallback-code" class="diagram-fallback-code" hidden><code id="diagram-fallback-code-content"></code></pre>
+      </div>
+
+      <!-- Collapsible Code Editor -->
+      <div id="code-editor-section" class="code-editor-section" hidden>
+        <div class="code-editor-header">
+          <h3 class="code-editor-title">Diagram Code Editor</h3>
+          <div class="code-editor-actions">
+            <button type="button" id="code-editor-toggle" class="code-editor-toggle"
+                    aria-expanded="false" aria-controls="code-editor-body">
+              <svg class="toggle-chevron" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+              <span class="toggle-text">Show Code</span>
+            </button>
+            <span id="editor-status" class="editor-status" aria-live="polite"></span>
+          </div>
+        </div>
+        <div id="code-editor-body" class="code-editor-body collapsed">
+          <div class="code-editor-container">
+            <div id="line-numbers" class="line-numbers" aria-hidden="true"></div>
+            <textarea
+              id="code-editor"
+              class="code-editor-textarea"
+              spellcheck="false"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              aria-label="Diagram code editor"
+              aria-describedby="editor-errors"
+            ></textarea>
+          </div>
+          <div id="editor-errors" class="editor-errors" role="alert" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- Raw results (hidden when preview or editor is active) -->
+      <pre id="results-content" class="results-content" hidden><code></code></pre>
+
+      <!-- Split-Pane Markdown Editor (shown for document output) -->
+      <div id="markdown-editor-section" class="markdown-editor-section" hidden aria-label="Markdown editor">
+        <div class="markdown-editor-header">
+          <h3 class="markdown-editor-title">Document Editor</h3>
+          <div class="markdown-editor-actions">
+            <span id="md-char-counter" class="md-char-counter" aria-live="polite">0 / 100,000</span>
+            <button type="button" id="md-save-btn" class="md-save-btn" aria-label="Save document">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Save</span>
+            </button>
+          </div>
+        </div>
+        <div id="md-limit-notification" class="md-limit-notification" role="alert" aria-live="assertive" hidden>
+          Content exceeds the 100,000 character limit. Further input is disabled.
+        </div>
+        <div id="md-save-confirmation" class="md-save-confirmation" role="status" aria-live="polite" hidden>
+          Document saved successfully.
+        </div>
+        <div class="markdown-split-pane">
+          <div class="markdown-pane markdown-pane-editor">
+            <div class="markdown-pane-label">Markdown</div>
+            <textarea
+              id="md-editor-textarea"
+              class="md-editor-textarea"
+              spellcheck="false"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              aria-label="Markdown source editor"
+              aria-describedby="md-char-counter md-limit-notification"
+              placeholder="Edit your Markdown document here..."
+            ></textarea>
+          </div>
+          <div class="markdown-pane-divider" aria-hidden="true"></div>
+          <div class="markdown-pane markdown-pane-preview">
+            <div class="markdown-pane-label">Preview</div>
+            <div
+              id="md-preview-content"
+              class="md-preview-content"
+              role="document"
+              aria-label="Rendered Markdown preview"
+            ></div>
+          </div>
+        </div>
+        <div id="md-render-error" class="md-render-error" role="alert" aria-live="polite" hidden>
+          Rendering failed — displaying raw text.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Ezekiel Matomi Lucky</p>
+  </footer>
+
+  <!-- Mermaid.js CDN for client-side diagram rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

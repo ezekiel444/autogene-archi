@@ -1,0 +1,35 @@
+{
+  "id": "cloud-architecture-default",
+  "name": "Default Cloud Architecture",
+  "type": "diagram",
+  "subType": "cloud-architecture",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "layer-separation",
+        "description": "Organize components into logical layers: presentation, application, data, and networking"
+      },
+      {
+        "constraint": "service-icons",
+        "description": "Use recognizable service names and group by cloud provider when applicable"
+      },
+      {
+        "constraint": "network-boundaries",
+        "description": "Show VPC, subnet, and security group boundaries where relevant"
+      },
+      {
+        "constraint": "data-flow-arrows",
+        "description": "Use labeled arrows to indicate data flow direction and protocol (HTTPS, gRPC, etc.)"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "use-subgraphs-for-zones",
+        "description": "Group services into subgraphs representing availability zones or regions"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

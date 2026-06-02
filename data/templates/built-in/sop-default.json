@@ -1,0 +1,41 @@
+{
+  "id": "sop-default",
+  "name": "Default Standard Operating Procedure",
+  "type": "document",
+  "subType": "sop",
+  "isBuiltIn": true,
+  "structure": {
+    "sections": [
+      { "heading": "Purpose", "level": 2, "required": true },
+      { "heading": "Scope", "level": 2, "required": true },
+      { "heading": "Responsibilities", "level": 2, "required": true },
+      { "heading": "Prerequisites", "level": 2, "required": false },
+      { "heading": "Procedure", "level": 2, "required": true },
+      { "heading": "Verification", "level": 2, "required": false },
+      { "heading": "Exception Handling", "level": 2, "required": false },
+      { "heading": "Revision History", "level": 2, "required": true }
+    ],
+    "layoutOrdering": [
+      "Purpose",
+      "Scope",
+      "Responsibilities",
+      "Prerequisites",
+      "Procedure",
+      "Verification",
+      "Exception Handling",
+      "Revision History"
+    ],
+    "formattingRules": [
+      {
+        "rule": "numbered-procedure-steps",
+        "description": "Use numbered lists for all procedural steps to ensure clear sequencing"
+      },
+      {
+        "rule": "role-based-responsibilities",
+        "description": "List responsibilities grouped by role using bullet points"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

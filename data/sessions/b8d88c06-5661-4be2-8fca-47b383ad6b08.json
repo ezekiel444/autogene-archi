@@ -1,0 +1,22 @@
+{
+  "id": "b8d88c06-5661-4be2-8fca-47b383ad6b08",
+  "createdAt": "2026-06-02T14:42:09.718Z",
+  "updatedAt": "2026-06-02T14:42:09.724Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design an AWS serverless API with API Gateway, Lambda functions, DynamoDB for data, and S3 for file storage",
+      "response": {
+        "content": "architecture-beta\n  group cloud(cloud)[Cloud]\n  service api(aws:api-gateway)[API Gateway] in cloud\n  service lambda(aws:lambda)[Lambda Function] in cloud\n  service dynamodb(aws:dynamodb)[DynamoDB] in cloud\n  service s3(aws:s3)[S3 Bucket] in cloud\n  api --> lambda:Invoke\n  lambda --> dynamodb:CRUD\n  lambda --> s3:Read/Write\n  dynamodb --> lambda:Data\n  s3 --> lambda:File\n  api --> s3:Proxy",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "b8d88c06-5661-4be2-8fca-47b383ad6b08",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-02T14:42:09.724Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

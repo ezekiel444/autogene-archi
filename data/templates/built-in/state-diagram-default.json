@@ -1,0 +1,35 @@
+{
+  "id": "state-diagram-default",
+  "name": "Default State Diagram",
+  "type": "diagram",
+  "subType": "state-diagram",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "initial-final-states",
+        "description": "Include explicit initial state ([*]) and final state markers"
+      },
+      {
+        "constraint": "transition-labels",
+        "description": "Label all transitions with the triggering event or condition"
+      },
+      {
+        "constraint": "state-naming",
+        "description": "Use descriptive PascalCase names for states that clearly indicate the system condition"
+      },
+      {
+        "constraint": "guard-conditions",
+        "description": "Show guard conditions in square brackets on transitions where applicable (e.g., [isValid])"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "composite-states",
+        "description": "Use composite (nested) states to group related substates for complex state machines"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

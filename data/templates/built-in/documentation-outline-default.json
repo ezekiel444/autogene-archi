@@ -1,0 +1,43 @@
+{
+  "id": "documentation-outline-default",
+  "name": "Default Documentation Outline",
+  "type": "document",
+  "subType": "documentation-outline",
+  "isBuiltIn": true,
+  "structure": {
+    "sections": [
+      { "heading": "Introduction", "level": 2, "required": true },
+      { "heading": "Getting Started", "level": 2, "required": true },
+      { "heading": "Installation", "level": 3, "required": true },
+      { "heading": "Configuration", "level": 3, "required": false },
+      { "heading": "Usage Guide", "level": 2, "required": true },
+      { "heading": "Examples", "level": 2, "required": false },
+      { "heading": "API Reference", "level": 2, "required": false },
+      { "heading": "Troubleshooting", "level": 2, "required": false },
+      { "heading": "FAQ", "level": 2, "required": false }
+    ],
+    "layoutOrdering": [
+      "Introduction",
+      "Getting Started",
+      "Installation",
+      "Configuration",
+      "Usage Guide",
+      "Examples",
+      "API Reference",
+      "Troubleshooting",
+      "FAQ"
+    ],
+    "formattingRules": [
+      {
+        "rule": "code-examples-in-fenced-blocks",
+        "description": "Include code examples in fenced code blocks with language identifiers"
+      },
+      {
+        "rule": "step-by-step-instructions",
+        "description": "Use numbered lists for sequential instructions in Getting Started and Usage Guide"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

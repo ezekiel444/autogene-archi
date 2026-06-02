@@ -1,0 +1,35 @@
+{
+  "id": "er-diagram-default",
+  "name": "Default ER Diagram",
+  "type": "diagram",
+  "subType": "er-diagram",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "entity-naming-convention",
+        "description": "Use PascalCase for entity names and camelCase for attribute names"
+      },
+      {
+        "constraint": "primary-key-identification",
+        "description": "Mark primary key attributes with PK notation"
+      },
+      {
+        "constraint": "relationship-cardinality",
+        "description": "Always specify cardinality on both ends of relationships (one-to-one, one-to-many, many-to-many)"
+      },
+      {
+        "constraint": "attribute-types",
+        "description": "Include data types for each attribute (string, int, date, boolean, etc.)"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "label-relationships",
+        "description": "Add verb labels to relationship lines describing the association (e.g., 'has', 'belongs to')"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

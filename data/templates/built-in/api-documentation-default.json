@@ -1,0 +1,45 @@
+{
+  "id": "api-documentation-default",
+  "name": "Default API Documentation",
+  "type": "document",
+  "subType": "api-documentation",
+  "isBuiltIn": true,
+  "structure": {
+    "sections": [
+      { "heading": "Overview", "level": 2, "required": true },
+      { "heading": "Authentication", "level": 2, "required": false },
+      { "heading": "Base URL", "level": 2, "required": true },
+      { "heading": "Endpoints", "level": 2, "required": true },
+      { "heading": "Request/Response Formats", "level": 2, "required": true },
+      { "heading": "Error Codes", "level": 2, "required": true },
+      { "heading": "Rate Limiting", "level": 2, "required": false },
+      { "heading": "Examples", "level": 2, "required": false }
+    ],
+    "layoutOrdering": [
+      "Overview",
+      "Authentication",
+      "Base URL",
+      "Endpoints",
+      "Request/Response Formats",
+      "Error Codes",
+      "Rate Limiting",
+      "Examples"
+    ],
+    "formattingRules": [
+      {
+        "rule": "use-tables-for-endpoints",
+        "description": "Present endpoints in table format with columns: Method, Path, Description"
+      },
+      {
+        "rule": "use-tables-for-error-codes",
+        "description": "Present error codes in table format with columns: Code, Status, Description"
+      },
+      {
+        "rule": "json-examples-in-code-blocks",
+        "description": "Include request/response JSON examples in fenced code blocks with json language identifier"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

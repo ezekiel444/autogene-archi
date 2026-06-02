@@ -1,0 +1,35 @@
+{
+  "id": "data-flow-default",
+  "name": "Default Data Flow Diagram",
+  "type": "diagram",
+  "subType": "data-flow",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "external-entities",
+        "description": "Represent external entities (sources/sinks) as rectangles at diagram edges"
+      },
+      {
+        "constraint": "process-numbering",
+        "description": "Number processes sequentially (1.0, 2.0, etc.) for reference"
+      },
+      {
+        "constraint": "data-store-notation",
+        "description": "Represent data stores with parallel lines or open-ended rectangles, labeled with store name"
+      },
+      {
+        "constraint": "flow-labeling",
+        "description": "Label all data flows with the type of data being transferred"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "single-level-decomposition",
+        "description": "Keep each diagram at a single level of abstraction; use separate diagrams for decomposition"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

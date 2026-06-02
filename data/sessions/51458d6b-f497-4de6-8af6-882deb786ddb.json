@@ -1,0 +1,22 @@
+{
+  "id": "51458d6b-f497-4de6-8af6-882deb786ddb",
+  "createdAt": "2026-06-02T15:11:31.186Z",
+  "updatedAt": "2026-06-02T15:11:31.211Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "generate an hld of two web app and a loadbalancer",
+      "response": {
+        "content": "loadbalancer[Load Balancer]\nwebapp1[Web App 1]\nwebapp2[Web App 2]\nuser-->|Request|loadbalancer\nloadbalancer-->|Route Request|webapp1\nloadbalancer-->|Route Request|webapp2\nwebapp1-->|Response|loadbalancer\nwebapp2-->|Response|loadbalancer\nloadbalancer-->|Response|user",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "51458d6b-f497-4de6-8af6-882deb786ddb",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-02T15:11:31.211Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

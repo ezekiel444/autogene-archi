@@ -1,0 +1,35 @@
+{
+  "id": "sequence-default",
+  "name": "Default Sequence Diagram",
+  "type": "diagram",
+  "subType": "sequence",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "participant-declaration",
+        "description": "Declare all participants at the top of the diagram with descriptive aliases"
+      },
+      {
+        "constraint": "message-labeling",
+        "description": "Label all messages with the operation or action being performed"
+      },
+      {
+        "constraint": "response-arrows",
+        "description": "Use dashed arrows for return/response messages to distinguish from request messages"
+      },
+      {
+        "constraint": "activation-bars",
+        "description": "Use activation bars to show when a participant is actively processing"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "group-related-messages",
+        "description": "Use alt/opt/loop fragments to group conditional or repeated message sequences"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

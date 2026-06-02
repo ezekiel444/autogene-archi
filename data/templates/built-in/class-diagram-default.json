@@ -1,0 +1,35 @@
+{
+  "id": "class-diagram-default",
+  "name": "Default Class Diagram",
+  "type": "diagram",
+  "subType": "class-diagram",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "visibility-modifiers",
+        "description": "Show visibility modifiers for all members (+ public, - private, # protected)"
+      },
+      {
+        "constraint": "type-annotations",
+        "description": "Include return types for methods and data types for attributes"
+      },
+      {
+        "constraint": "relationship-types",
+        "description": "Use correct UML notation for inheritance, composition, aggregation, and association"
+      },
+      {
+        "constraint": "class-naming",
+        "description": "Use PascalCase for class names and camelCase for methods and attributes"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "interface-stereotype",
+        "description": "Mark interfaces with the <<interface>> stereotype notation"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

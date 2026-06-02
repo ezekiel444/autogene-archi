@@ -1,0 +1,41 @@
+{
+  "id": "design-document-default",
+  "name": "Default Design Document",
+  "type": "document",
+  "subType": "design-document",
+  "isBuiltIn": true,
+  "structure": {
+    "sections": [
+      { "heading": "Overview", "level": 2, "required": true },
+      { "heading": "Goals and Non-Goals", "level": 2, "required": true },
+      { "heading": "Architecture", "level": 2, "required": true },
+      { "heading": "Data Model", "level": 2, "required": false },
+      { "heading": "API Design", "level": 2, "required": false },
+      { "heading": "Security Considerations", "level": 2, "required": false },
+      { "heading": "Trade-offs and Alternatives", "level": 2, "required": true },
+      { "heading": "Open Questions", "level": 2, "required": false }
+    ],
+    "layoutOrdering": [
+      "Overview",
+      "Goals and Non-Goals",
+      "Architecture",
+      "Data Model",
+      "API Design",
+      "Security Considerations",
+      "Trade-offs and Alternatives",
+      "Open Questions"
+    ],
+    "formattingRules": [
+      {
+        "rule": "use-diagrams-for-architecture",
+        "description": "Include at least one architecture diagram in the Architecture section"
+      },
+      {
+        "rule": "decision-rationale",
+        "description": "Provide reasoning for each major design decision in Trade-offs and Alternatives"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

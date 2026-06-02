@@ -1,0 +1,22 @@
+{
+  "id": "6e857bc5-33bf-4464-89c8-c891b6429c65",
+  "createdAt": "2026-06-02T14:58:18.025Z",
+  "updatedAt": "2026-06-02T14:58:18.050Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "generate an hld of two web app and a loadbalancer",
+      "response": {
+        "content": "graph LR\n    LB[Load Balancer] -->|HTTP/HTTPS|> WA1[Web App 1]\n    LB -->|HTTP/HTTPS|> WA2[Web App 2]\n    WA1 -->|Database Queries|> DB[Database]\n    WA2 -->|Database Queries|> DB\n    DB -->|Data|> WA1\n    DB -->|Data|> WA2\n    User -->|HTTP/HTTPS|> LB\n    WA1 -->|Response|> LB\n    WA2 -->|Response|> LB\n    LB -->|Response|> User",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "flowchart",
+        "sessionId": "6e857bc5-33bf-4464-89c8-c891b6429c65",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-02T14:58:18.050Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

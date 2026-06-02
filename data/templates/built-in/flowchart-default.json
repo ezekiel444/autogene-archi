@@ -1,0 +1,35 @@
+{
+  "id": "flowchart-default",
+  "name": "Default Flowchart",
+  "type": "diagram",
+  "subType": "flowchart",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "top-to-bottom-flow",
+        "description": "Use top-to-bottom (TD) direction as the primary flow direction"
+      },
+      {
+        "constraint": "descriptive-node-labels",
+        "description": "Each node must have a descriptive label that clearly states its purpose or action"
+      },
+      {
+        "constraint": "decision-diamond-shape",
+        "description": "Use diamond shapes for decision/conditional nodes with yes/no or true/false labels on edges"
+      },
+      {
+        "constraint": "start-end-terminals",
+        "description": "Include explicit start and end terminal nodes using rounded rectangles"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "use-subgraphs-for-grouping",
+        "description": "Group related steps into labeled subgraphs when the flowchart has more than 8 nodes"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

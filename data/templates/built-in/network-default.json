@@ -1,0 +1,35 @@
+{
+  "id": "network-default",
+  "name": "Default Network Diagram",
+  "type": "diagram",
+  "subType": "network",
+  "isBuiltIn": true,
+  "structure": {
+    "diagramConstraints": [
+      {
+        "constraint": "network-segments",
+        "description": "Separate network segments (LAN, WAN, DMZ) into distinct subgraphs with labeled boundaries"
+      },
+      {
+        "constraint": "device-identification",
+        "description": "Label each network device with its type (router, switch, firewall, server) and hostname or IP"
+      },
+      {
+        "constraint": "connection-labels",
+        "description": "Label connections with protocol and port information where relevant"
+      },
+      {
+        "constraint": "security-zones",
+        "description": "Visually distinguish security zones (trusted, untrusted, DMZ) using subgraph boundaries"
+      }
+    ],
+    "formattingRules": [
+      {
+        "rule": "hierarchical-layout",
+        "description": "Arrange devices in a hierarchical layout with core at top, distribution in middle, and access at bottom"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

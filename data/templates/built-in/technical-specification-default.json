@@ -1,0 +1,45 @@
+{
+  "id": "technical-specification-default",
+  "name": "Default Technical Specification",
+  "type": "document",
+  "subType": "technical-specification",
+  "isBuiltIn": true,
+  "structure": {
+    "sections": [
+      { "heading": "Summary", "level": 2, "required": true },
+      { "heading": "Requirements", "level": 2, "required": true },
+      { "heading": "Functional Requirements", "level": 3, "required": true },
+      { "heading": "Non-Functional Requirements", "level": 3, "required": false },
+      { "heading": "System Architecture", "level": 2, "required": true },
+      { "heading": "Data Specifications", "level": 2, "required": false },
+      { "heading": "Interface Contracts", "level": 2, "required": true },
+      { "heading": "Performance Criteria", "level": 2, "required": false },
+      { "heading": "Testing Strategy", "level": 2, "required": false },
+      { "heading": "Deployment", "level": 2, "required": false }
+    ],
+    "layoutOrdering": [
+      "Summary",
+      "Requirements",
+      "Functional Requirements",
+      "Non-Functional Requirements",
+      "System Architecture",
+      "Data Specifications",
+      "Interface Contracts",
+      "Performance Criteria",
+      "Testing Strategy",
+      "Deployment"
+    ],
+    "formattingRules": [
+      {
+        "rule": "requirement-ids",
+        "description": "Assign unique identifiers to each requirement (e.g., FR-001, NFR-001)"
+      },
+      {
+        "rule": "interface-code-blocks",
+        "description": "Define interface contracts using typed code blocks (TypeScript, JSON Schema, or similar)"
+      }
+    ]
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
