@@ -349,7 +349,6 @@ function fixCommonMermaidSyntax(code: string): string {
   let fixed = code;
 
   // Fix 0: Ensure diagram starts with a valid Mermaid diagram type declaration.
-  // If the first line doesn't contain a recognized keyword, prepend "graph TD"
   const firstLine = fixed.trim().split('\n')[0].trim();
   const mermaidKeywords = [
     'graph', 'flowchart', 'sequenceDiagram', 'classDiagram', 'stateDiagram',
@@ -361,14 +360,17 @@ function fixCommonMermaidSyntax(code: string): string {
     (kw) => firstLine === kw || firstLine.startsWith(kw + ' ') || firstLine.startsWith(kw + '\n'),
   );
   if (!hasValidStart && fixed.trim().length > 0) {
-    // Prepend "graph TD" so Mermaid knows what type of diagram this is
     fixed = 'graph TD\n' + fixed;
   }
+
+  // Determine the diagram type from the first line for context-specific fixes
+  const diagramFirstLine = fixed.trim().split('\n')[0].trim();
+  const isFlowchart = diagramFirstLine.startsWith('graph') || diagramFirstLine.startsWith('flowchart');
 
   // Fix 1: `-->|label|>` should be `-->|label|` (trailing > is invalid)
   fixed = fixed.replace(/(\|[^|]*\|)\s*>/g, '$1');
 
-  // Fix 2: `-- |label| -->` should be `-->|label|` 
+  // Fix 2: `-- |label| -->` should be `-->|label|`
   fixed = fixed.replace(/--\s*\|([^|]*)\|\s*-->/g, '-->|$1|');
 
   // Fix 3: Fix orphan `>` after edge labels
@@ -376,6 +378,13 @@ function fixCommonMermaidSyntax(code: string): string {
 
   // Fix 4: Remove trailing `>` at end of lines after edge labels
   fixed = fixed.replace(/\|>$/gm, '|');
+
+  // Fix 5: In flowcharts, replace sequence diagram arrows (->> and -->>)
+  // with valid flowchart arrows (-->)
+  if (isFlowchart) {
+    fixed = fixed.replace(/->>(\|[^|]*\|)?/g, '-->$1');
+    fixed = fixed.replace(/-->>(\|[^|]*\|)?/g, '-->$1');
+  }
 
   return fixed;
 }

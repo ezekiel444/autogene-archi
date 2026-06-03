@@ -186,9 +186,88 @@ async function callGeminiVision(
 // ─── Main Exports ────────────────────────────────────────────────────────────
 
 /**
- * Generates text completion using Groq (text-only provider).
- * Retries once on transient error, then fails with provider-specific error.
- * Never falls back to Gemini.
+ * Checks if an error is specifically a rate limit (429) error.
+ */
+function isRateLimitError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    return (error as { status: number }).status === 429;
+  }
+  if (error instanceof Error) {
+    return error.message.includes('429') || error.message.toLowerCase().includes('rate limit');
+  }
+  return false;
+}
+
+/**
+ * Extracts a human-readable retry time from an error message.
+ */
+function extractRetryTime(error: unknown): string | null {
+  const msg = error instanceof Error ? error.message : String(error);
+  // Match patterns like "52m5.952s", "27s", "27.010685423s", "Please try again in X"
+  const match = msg.match(/(?:try again in|retryDelay['":\s]*)\s*"?(\d+[mhMs.0-9]+s?)"?/i)
+    || msg.match(/(\d+m[\d.]+s)/i)
+    || msg.match(/(\d+s)/i);
+  return match ? match[1] : null;
+}
+
+/**
+ * Calls Google Gemini API for text-only chat completion (fallback for rate limits).
+ */
+async function callGeminiText(
+  messages: ChatMessage[],
+  options: Required<TextCompletionOptions>,
+  apiKey: string,
+): Promise<string> {
+  const client = new GoogleGenAI({ apiKey });
+
+  const { controller, cleanup } = createTimeoutController(options.timeoutMs);
+
+  try {
+    // Build the contents for Gemini from messages.
+    // Gemini uses "user" and "model" roles; system instructions are separate.
+    const systemInstruction = messages
+      .filter((m) => m.role === 'system')
+      .map((m) => m.content)
+      .join('\n');
+
+    const contents = messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+    // Ensure there's at least one user message
+    if (contents.length === 0) {
+      contents.push({ role: 'user', parts: [{ text: '' }] });
+    }
+
+    const response = await client.models.generateContent({
+      model: GEMINI_MODEL,
+      contents,
+      config: {
+        systemInstruction: systemInstruction || undefined,
+        temperature: options.temperature,
+        maxOutputTokens: options.maxTokens,
+        abortSignal: controller.signal,
+      },
+    });
+
+    const content = response.text;
+    if (!content) {
+      throw new Error('Gemini returned an empty response');
+    }
+    return content;
+  } finally {
+    cleanup();
+  }
+}
+
+/**
+ * Generates text completion using Groq as primary provider.
+ * On rate limit (429): automatically falls back to Gemini for text generation.
+ * On other transient errors: retries Groq once then fails.
+ * On non-transient errors: fails immediately.
  */
 export async function generateText(
   messages: ChatMessage[],
@@ -206,16 +285,44 @@ export async function generateText(
   try {
     return await callGroq(messages, resolvedOptions, config.GROQ_API_KEY);
   } catch (error) {
-    // Only retry on transient errors
+    // Rate limit: fall back to Gemini for text generation
+    if (isRateLimitError(error)) {
+      try {
+        return await callGeminiText(messages, resolvedOptions, config.GEMINI_API_KEY);
+      } catch (geminiError) {
+        // Extract retry time from either error
+        const groqRetry = extractRetryTime(error);
+        const geminiRetry = extractRetryTime(geminiError);
+        const retryMsg = groqRetry || geminiRetry
+          ? ` Try again in ${groqRetry || geminiRetry}.`
+          : ' Both providers are rate limited. Please wait and try again.';
+        throw new Error(`Rate limited on both Groq and Gemini.${retryMsg}`);
+      }
+    }
+
+    // Non-transient errors: fail immediately
     if (!isTransientError(error)) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(`Groq text generation failed: ${reason}`);
     }
 
-    // Attempt 2: Retry Groq once on transient failure
+    // Attempt 2: Retry Groq once on other transient failures (5xx, network)
     try {
       return await callGroq(messages, resolvedOptions, config.GROQ_API_KEY);
     } catch (retryError) {
+      // If retry also hits rate limit, fall back to Gemini
+      if (isRateLimitError(retryError)) {
+        try {
+          return await callGeminiText(messages, resolvedOptions, config.GEMINI_API_KEY);
+        } catch (geminiError) {
+          const groqRetry = extractRetryTime(retryError);
+          const geminiRetry = extractRetryTime(geminiError);
+          const retryMsg = groqRetry || geminiRetry
+            ? ` Try again in ${groqRetry || geminiRetry}.`
+            : ' Both providers are rate limited. Please wait and try again.';
+          throw new Error(`Rate limited on both Groq and Gemini.${retryMsg}`);
+        }
+      }
       const reason = retryError instanceof Error ? retryError.message : String(retryError);
       throw new Error(`Groq text generation failed: ${reason}`);
     }

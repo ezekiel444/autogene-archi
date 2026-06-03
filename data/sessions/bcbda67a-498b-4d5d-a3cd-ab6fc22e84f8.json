@@ -1,0 +1,22 @@
+{
+  "id": "bcbda67a-498b-4d5d-a3cd-ab6fc22e84f8",
+  "createdAt": "2026-06-02T15:48:15.640Z",
+  "updatedAt": "2026-06-02T15:48:15.645Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "generate an hld of two web app and a loadbalancer",
+      "response": {
+        "content": "graph TD\n    LB[Load Balancer] -->|requests| WA1[Web App 1]\n    LB -->|requests| WA2[Web App 2]\n    WA1 -.->|database queries|->> DB[Database]\n    WA2 -.->|database queries|->> DB\n    DB -.->|data|->> WA1\n    DB -.->|data|->> WA2\n    User[User] -->|http requests| LB",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "bcbda67a-498b-4d5d-a3cd-ab6fc22e84f8",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-02T15:48:15.645Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

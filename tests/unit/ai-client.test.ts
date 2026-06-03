@@ -140,19 +140,33 @@ describe('AI Client - generateText', () => {
       expect(mockGroqCreate).toHaveBeenCalledTimes(2);
     });
 
-    it('retries on 429 rate limit then succeeds', async () => {
+    it('falls back to Gemini on 429 rate limit', async () => {
       const rateLimitError = new Error('Rate limit exceeded');
       (rateLimitError as any).status = 429;
 
-      mockGroqCreate
-        .mockRejectedValueOnce(rateLimitError)
-        .mockResolvedValueOnce({
-          choices: [{ message: { content: 'after rate limit' } }],
-        });
+      mockGroqCreate.mockRejectedValueOnce(rateLimitError);
+      mockGeminiGenerateContent.mockResolvedValueOnce({
+        text: 'Gemini fallback on rate limit',
+      });
 
       const result = await generateText(sampleMessages);
-      expect(result).toBe('after rate limit');
-      expect(mockGroqCreate).toHaveBeenCalledTimes(2);
+      expect(result).toBe('Gemini fallback on rate limit');
+      expect(mockGroqCreate).toHaveBeenCalledTimes(1);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws friendly message when both are rate limited', async () => {
+      const groqError = new Error('Rate limit exceeded. Please try again in 52m5.952s');
+      (groqError as any).status = 429;
+
+      mockGroqCreate.mockRejectedValueOnce(groqError);
+      mockGeminiGenerateContent.mockRejectedValueOnce(
+        new Error('429 quota exceeded'),
+      );
+
+      await expect(generateText(sampleMessages)).rejects.toThrow(
+        /Rate limited on both Groq and Gemini/,
+      );
     });
   });
 
