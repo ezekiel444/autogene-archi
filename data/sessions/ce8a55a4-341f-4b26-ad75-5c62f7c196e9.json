@@ -1,0 +1,22 @@
+{
+  "id": "ce8a55a4-341f-4b26-ad75-5c62f7c196e9",
+  "createdAt": "2026-06-03T07:51:52.158Z",
+  "updatedAt": "2026-06-03T07:51:52.162Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design an AWS serverless API with API Gateway, Lambda, DynamoDB, S3, and CloudWatch monitoring",
+      "response": {
+        "content": "graph TD\n    subgraph Public Zone\n        API_Gateway[API Gateway] -->|REST| Lambda_Function(Lambda Function)\n    end\n    subgraph AWS Services\n        Lambda_Function -->|Trigger| DynamoDB(DynamoDB)\n        Lambda_Function -->|Put Object| S3(S3)\n        Lambda_Function -->|Log| CloudWatch(CloudWatch)\n    end\n    subgraph Monitoring\n        CloudWatch -->|Alarm| SNS(SNS)\n        SNS -->|Notification| Developer(Developer)\n    end\n    subgraph Security\n        API_Gateway -->|IAM Role| IAM(IAM)\n        Lambda_Function -->|IAM Role| IAM\n        DynamoDB -->|IAM Role| IAM\n        S3 -->|IAM Role| IAM\n    end",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "ce8a55a4-341f-4b26-ad75-5c62f7c196e9",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T07:51:52.162Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

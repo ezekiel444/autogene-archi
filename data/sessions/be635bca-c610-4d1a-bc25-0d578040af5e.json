@@ -1,0 +1,22 @@
+{
+  "id": "be635bca-c610-4d1a-bc25-0d578040af5e",
+  "createdAt": "2026-06-03T08:01:34.608Z",
+  "updatedAt": "2026-06-03T08:01:34.610Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer\n",
+      "response": {
+        "content": "classDiagram\n  class CloudArchitecture {\n    +String name\n    +deploy() void\n    +manage() void\n  }\n  class Storage {\n    +storeData() void\n    +retrieveData() void\n  }\n  class Compute {\n    +executeFunction() void\n    +scale() void\n  }\n  class Analytics {\n    +analyzeData() void\n    +visualize() void\n  }\n  class Orchestration {\n    +deployResources() void\n    +manageResources() void\n  }\n  class AWSS3 {\n    +storeData() void\n    +retrieveData() void\n  }\n  class AzureFunctions {\n    +executeFunction() void\n    +scale() void\n  }\n  class GCPBigQuery {\n    +analyzeData() void\n    +visualize() void\n  }\n  class Kubernetes {\n    +deployResources() void\n    +manageResources() void\n  }\n  CloudArchitecture <|-- Storage\n  CloudArchitecture <|-- Compute\n  CloudArchitecture <|-- Analytics\n  CloudArchitecture <|-- Orchestration\n  Storage <|-- AWSS3\n  Compute <|-- AzureFunctions\n  Analytics <|-- GCPBigQuery\n  Orchestration <|-- Kubernetes\n  AWSS3 --* AzureFunctions\n  AzureFunctions --* GCPBigQuery\n  GCPBigQuery --* Kubernetes\n  Kubernetes --* AWSS3",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "class-diagram",
+        "sessionId": "be635bca-c610-4d1a-bc25-0d578040af5e",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:01:34.610Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

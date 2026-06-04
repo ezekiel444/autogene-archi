@@ -9,6 +9,45 @@ vi.mock('@/infrastructure/ai-client.js', () => ({
   generateText: (...args: unknown[]) => mockGenerateText(...args),
 }));
 
+// ─── Test Data ───────────────────────────────────────────────────────────────
+
+const SIMPLE_DIAGRAM_JSON = JSON.stringify({
+  nodes: [
+    { id: 'start', label: 'Start', icon: 'default', group: 'flow', x: 100, y: 200 },
+    { id: 'end', label: 'End', icon: 'default', group: 'flow', x: 350, y: 200 },
+  ],
+  connections: [
+    { from: 'start', to: 'end', label: 'Next' },
+  ],
+  groups: [
+    { id: 'flow', label: 'Flow', color: '#e3f2fd' },
+  ],
+});
+
+const SEQUENCE_DIAGRAM_JSON = JSON.stringify({
+  diagramType: 'sequence',
+  nodes: [
+    { id: 'alice', label: 'Alice', icon: 'user', x: 100, y: 100 },
+    { id: 'bob', label: 'Bob', icon: 'user', x: 350, y: 100 },
+  ],
+  connections: [
+    { from: 'alice', to: 'bob', label: 'Hello' },
+  ],
+  groups: [],
+});
+
+const ER_DIAGRAM_JSON = JSON.stringify({
+  diagramType: 'er-diagram',
+  nodes: [
+    { id: 'customer', label: 'Customer', icon: 'database', x: 100, y: 100 },
+    { id: 'order', label: 'Order', icon: 'database', x: 350, y: 100 },
+  ],
+  connections: [
+    { from: 'customer', to: 'order', label: '1:N' },
+  ],
+  groups: [],
+});
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('Diagram Generator', () => {
@@ -27,10 +66,8 @@ describe('Diagram Generator', () => {
   });
 
   describe('generate', () => {
-    it('returns DiagramResult with code, format, and diagramType', async () => {
-      mockGenerateText.mockResolvedValue(
-        'graph TD\n  A[Start] --> B[End]',
-      );
+    it('returns DiagramResult with JSON code, format, and diagramType', async () => {
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       const result = await generate('Create a simple flowchart', {
         diagramType: 'flowchart',
@@ -38,7 +75,7 @@ describe('Diagram Generator', () => {
       });
 
       expect(result).toEqual({
-        code: 'graph TD\n  A[Start] --> B[End]',
+        code: SIMPLE_DIAGRAM_JSON,
         format: 'mermaid',
         diagramType: 'flowchart',
         isValid: true,
@@ -47,7 +84,7 @@ describe('Diagram Generator', () => {
     });
 
     it('defaults to mermaid format when no format specified', async () => {
-      mockGenerateText.mockResolvedValue('graph LR\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       const result = await generate('Create a chart', {
         diagramType: 'flowchart',
@@ -57,9 +94,7 @@ describe('Diagram Generator', () => {
     });
 
     it('uses plantuml format when specified', async () => {
-      mockGenerateText.mockResolvedValue(
-        '@startuml\nAlice -> Bob : Hello\n@enduml',
-      );
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       const result = await generate('Create a sequence diagram', {
         diagramType: 'sequence',
@@ -67,12 +102,11 @@ describe('Diagram Generator', () => {
       });
 
       expect(result.format).toBe('plantuml');
-      expect(result.code).toBe('@startuml\nAlice -> Bob : Hello\n@enduml');
     });
 
     it('strips markdown code fences from AI response', async () => {
       mockGenerateText.mockResolvedValue(
-        '```mermaid\ngraph TD\n  A --> B\n```',
+        '```json\n' + SIMPLE_DIAGRAM_JSON + '\n```',
       );
 
       const result = await generate('Create a flowchart', {
@@ -80,12 +114,12 @@ describe('Diagram Generator', () => {
         outputFormat: 'mermaid',
       });
 
-      expect(result.code).toBe('graph TD\n  A --> B');
+      expect(result.code).toBe(SIMPLE_DIAGRAM_JSON);
     });
 
     it('strips generic code fences from AI response', async () => {
       mockGenerateText.mockResolvedValue(
-        '```\ngraph TD\n  A --> B\n```',
+        '```\n' + SIMPLE_DIAGRAM_JSON + '\n```',
       );
 
       const result = await generate('Create a flowchart', {
@@ -93,22 +127,20 @@ describe('Diagram Generator', () => {
         outputFormat: 'mermaid',
       });
 
-      expect(result.code).toBe('graph TD\n  A --> B');
+      expect(result.code).toBe(SIMPLE_DIAGRAM_JSON);
     });
 
-    it('infers diagram type from AI response when not specified', async () => {
-      mockGenerateText.mockResolvedValue(
-        'DiagramType: sequence\nsequenceDiagram\n  Alice->>Bob: Hello',
-      );
+    it('infers diagram type from JSON diagramType field when not specified', async () => {
+      mockGenerateText.mockResolvedValue(SEQUENCE_DIAGRAM_JSON);
 
       const result = await generate('Show how Alice talks to Bob', {});
 
       expect(result.diagramType).toBe('sequence');
-      expect(result.code).toBe('sequenceDiagram\n  Alice->>Bob: Hello');
     });
 
     it('defaults to flowchart when type inference fails', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      // JSON without diagramType field and no diagramType in context
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       const result = await generate('Make something', {});
 
@@ -116,7 +148,7 @@ describe('Diagram Generator', () => {
     });
 
     it('passes timeout to AI client', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await generate('Create a flowchart', { diagramType: 'flowchart' });
 
@@ -129,7 +161,7 @@ describe('Diagram Generator', () => {
     });
 
     it('includes diagram type in system prompt when specified', async () => {
-      mockGenerateText.mockResolvedValue('erDiagram\n  A ||--o{ B : has');
+      mockGenerateText.mockResolvedValue(ER_DIAGRAM_JSON);
 
       await generate('Create an ER diagram', {
         diagramType: 'er-diagram',
@@ -142,19 +174,17 @@ describe('Diagram Generator', () => {
     });
 
     it('instructs AI to infer type when not specified', async () => {
-      mockGenerateText.mockResolvedValue(
-        'DiagramType: flowchart\ngraph TD\n  A --> B',
-      );
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await generate('Show a process', {});
 
       const systemMessage = mockGenerateText.mock.calls[0][0][0];
       expect(systemMessage.content).toContain('Infer the most appropriate diagram type');
-      expect(systemMessage.content).toContain('DiagramType:');
+      expect(systemMessage.content).toContain('diagramType');
     });
 
     it('includes attachment context in prompt', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await generate('Diagram this code', {
         diagramType: 'class-diagram',
@@ -175,7 +205,7 @@ describe('Diagram Generator', () => {
     });
 
     it('includes session history in prompt', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B --> C');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await generate('Add a third node', {
         diagramType: 'flowchart',
@@ -185,7 +215,7 @@ describe('Diagram Generator', () => {
             index: 0,
             prompt: 'Create a flowchart with two nodes',
             response: {
-              content: 'graph TD\n  A --> B',
+              content: SIMPLE_DIAGRAM_JSON,
               outputType: 'diagram',
               format: 'mermaid',
               diagramType: 'flowchart',
@@ -199,11 +229,10 @@ describe('Diagram Generator', () => {
 
       const userMessage = mockGenerateText.mock.calls[0][0][1];
       expect(userMessage.content).toContain('Create a flowchart with two nodes');
-      expect(userMessage.content).toContain('graph TD');
     });
 
     it('includes template constraints in system prompt', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await generate('Create a flowchart', {
         diagramType: 'flowchart',
@@ -236,76 +265,114 @@ describe('Diagram Generator', () => {
       expect(systemMessage.content).toContain('Limit diagram to 10 nodes maximum');
       expect(systemMessage.content).toContain('direction');
     });
+
+    it('system prompt instructs AI to output JSON format', async () => {
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+      await generate('Create a flowchart', {
+        diagramType: 'flowchart',
+        outputFormat: 'mermaid',
+      });
+
+      const systemMessage = mockGenerateText.mock.calls[0][0][0];
+      expect(systemMessage.content).toContain('valid JSON');
+      expect(systemMessage.content).toContain('"nodes"');
+      expect(systemMessage.content).toContain('"connections"');
+      expect(systemMessage.content).toContain('"groups"');
+    });
+
+    it('extracts JSON from response with surrounding text', async () => {
+      mockGenerateText.mockResolvedValue(
+        'Here is the diagram:\n' + SIMPLE_DIAGRAM_JSON + '\n\nHope this helps!',
+      );
+
+      const result = await generate('Create a flowchart', {
+        diagramType: 'flowchart',
+        outputFormat: 'mermaid',
+      });
+
+      expect(result.code).toBe(SIMPLE_DIAGRAM_JSON);
+    });
   });
 
   describe('refine', () => {
-    it('returns updated DiagramResult', async () => {
-      mockGenerateText.mockResolvedValue(
-        'graph TD\n  A --> B --> C[New Node]',
-      );
+    it('returns updated DiagramResult with JSON', async () => {
+      const updatedJSON = JSON.stringify({
+        nodes: [
+          { id: 'start', label: 'Start', icon: 'default', group: 'flow', x: 100, y: 200 },
+          { id: 'middle', label: 'Middle', icon: 'default', group: 'flow', x: 350, y: 200 },
+          { id: 'end', label: 'End', icon: 'default', group: 'flow', x: 600, y: 200 },
+        ],
+        connections: [
+          { from: 'start', to: 'middle', label: 'Next' },
+          { from: 'middle', to: 'end', label: 'Done' },
+        ],
+        groups: [
+          { id: 'flow', label: 'Flow', color: '#e3f2fd' },
+        ],
+      });
+
+      mockGenerateText.mockResolvedValue(updatedJSON);
 
       const result = await refine(
-        'Add a new node C',
-        'graph TD\n  A --> B',
+        'Add a new node in the middle',
+        SIMPLE_DIAGRAM_JSON,
         { diagramType: 'flowchart', outputFormat: 'mermaid' },
       );
 
-      expect(result).toEqual({
-        code: 'graph TD\n  A --> B --> C[New Node]',
-        format: 'mermaid',
-        diagramType: 'flowchart',
-        isValid: true,
-        validationErrors: undefined,
-      });
+      expect(result.code).toBe(updatedJSON);
+      expect(result.format).toBe('mermaid');
+      expect(result.diagramType).toBe('flowchart');
+      expect(result.isValid).toBe(true);
     });
 
     it('includes existing code in the prompt', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B --> C');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await refine(
         'Add node C',
-        'graph TD\n  A --> B',
+        SIMPLE_DIAGRAM_JSON,
         { diagramType: 'flowchart', outputFormat: 'mermaid' },
       );
 
       const userMessage = mockGenerateText.mock.calls[0][0][1];
-      expect(userMessage.content).toContain('graph TD\n  A --> B');
+      expect(userMessage.content).toContain(SIMPLE_DIAGRAM_JSON);
       expect(userMessage.content).toContain('Add node C');
     });
 
     it('instructs AI to preserve unchanged elements', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await refine(
         'Change label',
-        'graph TD\n  A --> B',
+        SIMPLE_DIAGRAM_JSON,
         { diagramType: 'flowchart', outputFormat: 'mermaid' },
       );
 
       const systemMessage = mockGenerateText.mock.calls[0][0][0];
-      expect(systemMessage.content).toContain('Preserve unchanged elements');
+      expect(systemMessage.content).toContain('Preserve unchanged');
     });
 
     it('strips code fences from refine response', async () => {
       mockGenerateText.mockResolvedValue(
-        '```mermaid\ngraph TD\n  A --> B --> C\n```',
+        '```json\n' + SIMPLE_DIAGRAM_JSON + '\n```',
       );
 
       const result = await refine(
         'Add C',
-        'graph TD\n  A --> B',
+        SIMPLE_DIAGRAM_JSON,
         { diagramType: 'flowchart', outputFormat: 'mermaid' },
       );
 
-      expect(result.code).toBe('graph TD\n  A --> B --> C');
+      expect(result.code).toBe(SIMPLE_DIAGRAM_JSON);
     });
 
     it('includes attachment context in refine prompt', async () => {
-      mockGenerateText.mockResolvedValue('classDiagram\n  class Foo');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await refine(
         'Update based on attached file',
-        'classDiagram\n  class Bar',
+        SIMPLE_DIAGRAM_JSON,
         {
           diagramType: 'class-diagram',
           outputFormat: 'mermaid',
@@ -325,11 +392,11 @@ describe('Diagram Generator', () => {
     });
 
     it('includes session history in refine prompt', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B --> C');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       await refine(
         'Add more',
-        'graph TD\n  A --> B',
+        SIMPLE_DIAGRAM_JSON,
         {
           diagramType: 'flowchart',
           outputFormat: 'mermaid',
@@ -338,7 +405,7 @@ describe('Diagram Generator', () => {
               index: 0,
               prompt: 'Original request',
               response: {
-                content: 'graph TD\n  A --> B',
+                content: SIMPLE_DIAGRAM_JSON,
                 outputType: 'diagram',
                 format: 'mermaid',
                 sessionId: 'sess-1',
@@ -355,24 +422,21 @@ describe('Diagram Generator', () => {
     });
 
     it('infers diagram type during refine when not specified', async () => {
-      mockGenerateText.mockResolvedValue(
-        'DiagramType: er-diagram\nerDiagram\n  CUSTOMER ||--o{ ORDER : places',
-      );
+      mockGenerateText.mockResolvedValue(ER_DIAGRAM_JSON);
 
       const result = await refine(
         'Add orders table',
-        'erDiagram\n  CUSTOMER',
+        SIMPLE_DIAGRAM_JSON,
         {},
       );
 
       expect(result.diagramType).toBe('er-diagram');
-      expect(result.code).toBe('erDiagram\n  CUSTOMER ||--o{ ORDER : places');
     });
 
     it('passes timeout to AI client during refine', async () => {
-      mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+      mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
-      await refine('Update', 'graph TD\n  A', {
+      await refine('Update', SIMPLE_DIAGRAM_JSON, {
         diagramType: 'flowchart',
       });
 
@@ -402,7 +466,7 @@ describe('Diagram Generator', () => {
       );
 
       await expect(
-        refine('Update', 'graph TD', { diagramType: 'flowchart' }),
+        refine('Update', SIMPLE_DIAGRAM_JSON, { diagramType: 'flowchart' }),
       ).rejects.toThrow('AI generation failed');
     });
   });

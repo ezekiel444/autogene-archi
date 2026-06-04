@@ -1,0 +1,22 @@
+{
+  "id": "90fcdd9f-1fa3-43b1-810d-0198051107b8",
+  "createdAt": "2026-06-03T07:50:53.451Z",
+  "updatedAt": "2026-06-03T07:50:53.454Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design an AWS serverless API with API Gateway, Lambda, DynamoDB, S3, and CloudWatch monitoring",
+      "response": {
+        "content": "graph TD\n    participant Client as \"Client\"\n    participant API_Gateway as \"API Gateway\"\n    participant Lambda as \"Lambda Function\"\n    participant DynamoDB as \"DynamoDB Table\"\n    participant S3 as \"S3 Bucket\"\n    participant CloudWatch as \"CloudWatch Monitoring\"\n\n    Client -->|API Request| API_Gateway\n    API_Gateway -->|Trigger Lambda| Lambda\n    Lambda -->|Read/Write Data| DynamoDB\n    Lambda -->|Store/Retrieve Files| S3\n    Lambda -->|Log Events| CloudWatch\n    CloudWatch -->|Monitor and Log| Lambda\n    DynamoDB -->|Return Data| Lambda\n    S3 -->|Return Files| Lambda\n    Lambda -->|Return Response| API_Gateway\n    API_Gateway -->|Return Response| Client\n\n    style Client fill:#f9f,stroke:#333,stroke-width:4px\n    style API_Gateway fill:#f9f,stroke:#333,stroke-width:4px\n    style Lambda fill:#f9f,stroke:#333,stroke-width:4px\n    style DynamoDB fill:#f9f,stroke:#333,stroke-width:4px\n    style S3 fill:#f9f,stroke:#333,stroke-width:4px\n    style CloudWatch fill:#f9f,stroke:#333,stroke-width:4px",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "90fcdd9f-1fa3-43b1-810d-0198051107b8",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T07:50:53.454Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

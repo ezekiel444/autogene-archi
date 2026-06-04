@@ -1,0 +1,22 @@
+{
+  "id": "8c853128-7ff7-426a-8a79-1519917bc420",
+  "createdAt": "2026-06-03T08:47:38.336Z",
+  "updatedAt": "2026-06-03T08:47:38.341Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer",
+      "response": {
+        "content": "architecture-beta\n    group frontend(cloud)[Frontend]\n    group compute(server)[Compute]\n    group storage(disk)[Storage]\n    group analytics(chart)[Analytics]\n    group orchestration(gear)[Orchestration]\n    group monitoring(cloud)[Monitoring]\n\n    service ingress(logos:nginx)[Ingress] in frontend\n    service azurefunc(logos:azure)[Azure Functions] in compute\n    service k8s(logos:kubernetes)[Kubernetes] in orchestration\n    service s3(logos:aws-s3)[S3 Bucket] in storage\n    service bigquery(logos:google-cloud)[BigQuery] in analytics\n    service cw(logos:aws-cloudwatch)[CloudWatch] in monitoring\n    service redis(logos:redis)[Redis Cache] in storage\n    service postgres(logos:postgresql)[Postgres DB] in storage\n\n    ingress:R -- L:azurefunc\n    azurefunc:R -- L:k8s\n    k8s:R -- L:s3\n    k8s:R -- L:bigquery\n    s3:R -- L:redis\n    s3:R -- L:postgres\n    azurefunc:B -- T:cw\n    k8s:B -- T:cw\n    bigquery:B -- T:cw\n    redis:B -- T:cw\n    postgres:B -- T:cw",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "8c853128-7ff7-426a-8a79-1519917bc420",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:47:38.341Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

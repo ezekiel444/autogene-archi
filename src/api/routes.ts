@@ -171,7 +171,17 @@ router.post('/api/generate', async (req: Request, res: Response) => {
   } else if ((req.body as any).mode === 'diagram') {
     // User explicitly chose diagram mode — always produce a diagram
     outputType = 'diagram';
-    // Don't set a default diagramType — let the AI infer the best type from the prompt
+    // Try to infer the best diagram type from the prompt
+    if (!generationRequest.diagramType) {
+      try {
+        const classification = await classifyPrompt(body.prompt);
+        if (classification.inferredDiagramType) {
+          generationRequest.diagramType = classification.inferredDiagramType;
+        }
+      } catch {
+        // If classification fails, let the generator infer
+      }
+    }
   } else if ((req.body as any).mode === 'document') {
     outputType = 'document';
   } else {

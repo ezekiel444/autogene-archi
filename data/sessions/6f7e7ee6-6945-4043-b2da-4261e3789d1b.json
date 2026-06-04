@@ -1,0 +1,22 @@
+{
+  "id": "6f7e7ee6-6945-4043-b2da-4261e3789d1b",
+  "createdAt": "2026-06-03T08:06:16.299Z",
+  "updatedAt": "2026-06-03T08:06:16.302Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer",
+      "response": {
+        "content": "flowchart LR\n  subgraph External\n    U[User]\n    IoT[IoT Devices]\n  end\n  subgraph Cloud_Storage\n    S3[(AWS S3)]\n  end\n  subgraph Cloud_Compute\n    AF[Azure Functions]\n  end\n  subgraph Cloud_Analytics\n    BQ[(GCP BigQuery)]\n  end\n  subgraph Orchestration\n    K8s[Kubernetes]\n  end\n  U -->|request| AF\n  IoT -->|telemetry| AF\n  AF -->|processed data| S3\n  AF -->|event| K8s\n  K8s -->|orchestration| AF\n  S3 -->|data| BQ\n  BQ -->|insights| U\n  K8s -->|management| S3\n  K8s -->|management| BQ\n  AF -->|logs| BQ\n  BQ -->|query results| U",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "data-flow",
+        "sessionId": "6f7e7ee6-6945-4043-b2da-4261e3789d1b",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:06:16.302Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

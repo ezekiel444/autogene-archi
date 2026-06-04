@@ -1,0 +1,22 @@
+{
+  "id": "638d7a79-29e0-4553-aa82-c46085b25e2c",
+  "createdAt": "2026-06-03T08:08:25.210Z",
+  "updatedAt": "2026-06-03T08:08:25.213Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer",
+      "response": {
+        "content": "architecture-beta\n    group presentation(cloud)[Presentation Layer]\n    group application(cloud)[Application Layer]\n    group data(cloud)[Data Layer]\n    group analytics(cloud)[Analytics Layer]\n    group orchestration(cloud)[Orchestration Layer]\n\n    service s3(aws:s3)[S3 Bucket] in data\n    service azurefunc(azure:functions)[Azure Functions] in application\n    service bigquery(gcp:bigquery)[BigQuery] in analytics\n    service k8s(logos:kubernetes)[Kubernetes] in orchestration\n\n    service nginx(logos:nginx)[NGINX] in presentation\n    service app(azure:app-service)[Web App] in presentation\n\n    nginx:R -- L:azurefunc\n    azurefunc:R -- L:s3\n    azurefunc:B -- T:k8s\n    k8s:T -- B:bigquery\n    s3:R -- L:bigquery\n    app:R -- L:nginx",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "638d7a79-29e0-4553-aa82-c46085b25e2c",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:08:25.213Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

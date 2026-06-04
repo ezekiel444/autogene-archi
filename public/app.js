@@ -2,6 +2,7 @@
  * AI Diagram & Document Generator — Client-Side Application
  *
  * Handles form interactions, file attachments, API calls, and result display.
+ * Uses Drawflow for interactive drag-and-drop diagram rendering.
  */
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -18,11 +19,59 @@ const SUPPORTED_EXTENSIONS = new Set([
   'html', 'css', 'json', 'yaml', 'yml', 'xml', 'sh',
 ]);
 
+// ─── Cloud Provider Icon SVGs ────────────────────────────────────────────────
+
+const CLOUD_ICONS = {
+  'aws-lambda': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/><path d="M8 10l2 4 2-4 2 4 2-4"/></svg>',
+  'aws-s3': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>',
+  'aws-dynamodb': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M4 6h16v12H4z"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M10 6v12"/></svg>',
+  'aws-api-gateway': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M4 4h16v16H4z"/><path d="M9 8l3 4-3 4"/><path d="M15 8l-3 4 3 4"/></svg>',
+  'aws-cloudwatch': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  'aws-ec2': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8v8H8z"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/></svg>',
+  'aws-rds': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 10v4c0 1.66 3.13 3 7 3s7-1.34 7-3v-4"/><path d="M5 14v4c0 1.66 3.13 3 7 3s7-1.34 7-3v-4"/></svg>',
+  'aws-sqs': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h6"/><path d="M15 10l2 2-2 2"/></svg>',
+  'aws-cloudfront': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="4" ry="9"/></svg>',
+  'aws-sns': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M12 3v4M12 17v4"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>',
+  'aws-ecs': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><rect x="6" y="6" width="5" height="5" rx="1"/><rect x="13" y="6" width="5" height="5" rx="1"/><rect x="6" y="13" width="5" height="5" rx="1"/></svg>',
+  'aws-eks': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>',
+  'aws-elasticache': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  'aws-kinesis': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><path d="M4 8c4-2 8 2 12 0s4-2 4-2"/><path d="M4 12c4-2 8 2 12 0s4-2 4-2"/><path d="M4 16c4-2 8 2 12 0s4-2 4-2"/></svg>',
+  'aws-step-functions': '<svg viewBox="0 0 24 24" fill="none" stroke="#FF9900" stroke-width="1.5"><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="20" r="2"/><path d="M12 6v4M12 14v4"/></svg>',
+  'azure': '<svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><path d="M6 20L13 4h5l-3 8h4L8 20h-2z"/></svg>',
+  'azure-functions': '<svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  'azure-storage': '<svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>',
+  'azure-sql': '<svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/></svg>',
+  'azure-cosmos-db': '<svg viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="4" ry="9"/></svg>',
+  'gcp': '<svg viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5"><path d="M14.5 3.5L12 2 9.5 3.5 7 2v4l2.5 1.5L12 6l2.5 1.5L17 6V2l-2.5 1.5z"/><path d="M7 8v8l5 3 5-3V8l-5-3-5 3z"/></svg>',
+  'gcp-cloud-functions': '<svg viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  'gcp-cloud-storage': '<svg viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>',
+  'gcp-bigquery': '<svg viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8v8M12 11v5M16 9v7"/></svg>',
+  'kubernetes': '<svg viewBox="0 0 24 24" fill="none" stroke="#326CE5" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7.5 9.5l9 5M7.5 14.5l9-5"/></svg>',
+  'docker': '<svg viewBox="0 0 24 24" fill="none" stroke="#2496ED" stroke-width="1.5"><path d="M4 12h3v3H4zM8 12h3v3H8zM12 12h3v3h-3zM8 8h3v3H8zM12 8h3v3h-3zM16 12h3v3h-3z"/><path d="M2 14c0 0 1 4 10 4s10-4 10-4"/></svg>',
+  'database': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>',
+  'server': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 7h.01M7 18h.01"/></svg>',
+  'cloud': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  'user': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  'load-balancer': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><circle cx="12" cy="5" r="3"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><path d="M12 8v3M9 13l-3 3M15 13l3 3"/></svg>',
+  'firewall': '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M15 3v18M3 15h18"/></svg>',
+  'queue': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="2" y="7" width="4" height="10" rx="1"/><rect x="8" y="7" width="4" height="10" rx="1"/><rect x="14" y="7" width="4" height="10" rx="1"/><path d="M20 12h2M20 10l2 2-2 2"/></svg>',
+  'cache': '<svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  'cdn': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M2 12h20"/><path d="M12 3a15.3 15.3 0 0 1 4 9 15.3 15.3 0 0 1-4 9 15.3 15.3 0 0 1-4-9 15.3 15.3 0 0 1 4-9z"/></svg>',
+  'monitoring': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M7 13l3-3 2 2 5-5"/><path d="M8 21h8M12 17v4"/></svg>',
+  'default': '<svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg>',
+};
+
+function getIconSVG(iconName) {
+  return CLOUD_ICONS[iconName] || CLOUD_ICONS['default'];
+}
+
 // ─── State ───────────────────────────────────────────────────────────────────
 
 let currentMode = 'diagram'; // 'diagram' | 'document'
 let attachedFiles = []; // File[]
 let isGenerating = false;
+let drawflowEditor = null;
+let currentDiagramJSON = null; // Store current diagram JSON data
 
 // ─── DOM Elements ────────────────────────────────────────────────────────────
 
@@ -48,6 +97,7 @@ const resultTypeBadge = document.getElementById('result-type-badge');
 const resultFormatBadge = document.getElementById('result-format-badge');
 const modeTabs = document.querySelectorAll('.mode-tab');
 
+
 // ─── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -55,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPromptInput();
   initFileAttachments();
   loadTemplates();
+  initDiagramPreview();
 });
 
 // ─── Mode Toggle ─────────────────────────────────────────────────────────────
@@ -77,7 +128,7 @@ function initModeToggle() {
       // Show/hide diagram-specific options
       const isDiagram = mode === 'diagram';
       diagramTypeGroup.hidden = !isDiagram;
-      outputFormatGroup.hidden = !isDiagram;
+      if (outputFormatGroup) outputFormatGroup.hidden = true; // always hidden now
 
       // Reload templates for the selected mode
       loadTemplates();
@@ -352,11 +403,8 @@ async function buildRequestBody() {
     if (diagramType) {
       body.diagramType = diagramType;
     }
-
-    const outputFormat = document.querySelector('input[name="outputFormat"]:checked')?.value;
-    if (outputFormat) {
-      body.outputFormat = outputFormat;
-    }
+    // Always use mermaid format for backend compatibility (output is JSON anyway)
+    body.outputFormat = 'mermaid';
   }
 
   // Attachments (convert to base64)
@@ -383,9 +431,8 @@ function displayResults(data) {
     // Hide markdown editor
     hideMarkdownEditor();
 
-    const format = data.format || 'mermaid';
-    showDiagramPreview(data.content, format);
-    initCodeEditor(data.content, format);
+    showDiagramPreview(data.content);
+    initCodeEditor(data.content, 'json');
     setCodeEditorCollapsed(true);
     codeEditorSection.hidden = false;
 
@@ -419,7 +466,7 @@ function displayResults(data) {
 
   // Update badges
   resultTypeBadge.textContent = data.outputType || '';
-  resultFormatBadge.textContent = data.format || data.diagramType || data.documentType || '';
+  resultFormatBadge.textContent = data.diagramType || data.documentType || '';
 
   resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -465,653 +512,90 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ─── Markdown Editor ─────────────────────────────────────────────────────────
 
-const MD_MAX_CHARS = 100_000;
-const MD_DEBOUNCE_MS = 500; // 500ms debounce gives <1s total response time
+// ─── Drawflow Diagram Renderer ───────────────────────────────────────────────
 
-let mdInstance = null;
-let mdDebounceTimer = null;
-let mdSaveConfirmTimer = null;
+function initDrawflow() {
+  const container = document.getElementById('drawflow');
+  if (!container || drawflowEditor) return;
 
-// DOM elements for Markdown editor
-const mdEditorSection = document.getElementById('markdown-editor-section');
-const mdEditorTextarea = document.getElementById('md-editor-textarea');
-const mdPreviewContent = document.getElementById('md-preview-content');
-const mdCharCounter = document.getElementById('md-char-counter');
-const mdLimitNotification = document.getElementById('md-limit-notification');
-const mdSaveConfirmation = document.getElementById('md-save-confirmation');
-const mdSaveBtn = document.getElementById('md-save-btn');
-const mdRenderError = document.getElementById('md-render-error');
-
-/**
- * Initialize the markdown-it instance.
- * Falls back gracefully if markdown-it CDN hasn't loaded.
- */
-function initMarkdownIt() {
-  if (mdInstance) return mdInstance;
-
-  if (typeof markdownit === 'function') {
-    mdInstance = markdownit({
-      html: false,
-      linkify: true,
-      typographer: false,
-    });
-  }
-
-  return mdInstance;
+  drawflowEditor = new Drawflow(container);
+  drawflowEditor.reroute = true;
+  drawflowEditor.reroute_fix_curvature = true;
+  drawflowEditor.force_first_input = false;
+  drawflowEditor.start();
 }
 
-/**
- * Show the Markdown editor section with content.
- */
-function showMarkdownEditor(content) {
-  if (!mdEditorSection) return;
-
-  mdEditorSection.hidden = false;
-  mdEditorTextarea.value = content;
-
-  // Initialize markdown-it
-  initMarkdownIt();
-
-  // Set up event listeners (remove old ones first to avoid duplicates)
-  mdEditorTextarea.removeEventListener('input', handleMdEditorInput);
-  mdEditorTextarea.addEventListener('input', handleMdEditorInput);
-
-  mdSaveBtn.removeEventListener('click', handleMdSave);
-  mdSaveBtn.addEventListener('click', handleMdSave);
-
-  // Initial render and counter update
-  updateMdCharCounter();
-  renderMarkdownPreview();
-}
-
-/**
- * Hide the Markdown editor section.
- */
-function hideMarkdownEditor() {
-  if (!mdEditorSection) return;
-  mdEditorSection.hidden = true;
-}
-
-/**
- * Handle input events on the Markdown editor textarea.
- * Debounces rendering and enforces character limit.
- */
-function handleMdEditorInput() {
-  const content = mdEditorTextarea.value;
-
-  // Enforce character limit
-  if (content.length > MD_MAX_CHARS) {
-    mdEditorTextarea.value = content.slice(0, MD_MAX_CHARS);
-    mdLimitNotification.hidden = false;
-    mdEditorTextarea.disabled = true;
-
-    // Re-enable after a short moment so user can delete content
-    setTimeout(() => {
-      mdEditorTextarea.disabled = false;
-      mdEditorTextarea.focus();
-    }, 100);
-  } else {
-    mdLimitNotification.hidden = true;
-  }
-
-  updateMdCharCounter();
-
-  // Debounce preview render (500ms for <1s total update time)
-  if (mdDebounceTimer) {
-    clearTimeout(mdDebounceTimer);
-  }
-  mdDebounceTimer = setTimeout(() => {
-    renderMarkdownPreview();
-  }, MD_DEBOUNCE_MS);
-}
-
-/**
- * Update the character counter display.
- */
-function updateMdCharCounter() {
-  const length = mdEditorTextarea.value.length;
-  mdCharCounter.textContent = `${length.toLocaleString()} / 100,000`;
-
-  mdCharCounter.classList.remove('near-limit', 'at-limit');
-  if (length >= MD_MAX_CHARS) {
-    mdCharCounter.classList.add('at-limit');
-  } else if (length >= MD_MAX_CHARS * 0.9) {
-    mdCharCounter.classList.add('near-limit');
-  }
-}
-
-/**
- * Render Markdown content to HTML preview.
- * Falls back to raw text display on rendering failure.
- */
-function renderMarkdownPreview() {
-  const content = mdEditorTextarea.value;
-
-  try {
-    const md = initMarkdownIt();
-
-    if (!md) {
-      // markdown-it not available — show raw text
-      showRawTextFallback(content);
-      return;
-    }
-
-    const html = md.render(content);
-    mdPreviewContent.innerHTML = html;
-    mdPreviewContent.classList.remove('raw-text');
-    mdRenderError.hidden = true;
-  } catch (err) {
-    // Rendering failed — show raw text with error indication
-    showRawTextFallback(content);
-  }
-}
-
-/**
- * Display raw text in preview pane when rendering fails.
- */
-function showRawTextFallback(content) {
-  mdPreviewContent.textContent = content;
-  mdPreviewContent.classList.add('raw-text');
-  mdRenderError.hidden = false;
-}
-
-/**
- * Handle save button click.
- * Downloads the Markdown as a .md file and shows confirmation.
- */
-function handleMdSave() {
-  const content = mdEditorTextarea.value;
-
-  if (!content.trim()) return;
-
-  try {
-    // Create a Blob and trigger download
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    // Show save confirmation
-    showSaveConfirmation();
-  } catch (err) {
-    // If download fails, try copying to clipboard as fallback
-    navigator.clipboard.writeText(content).then(() => {
-      showSaveConfirmation();
-    }).catch(() => {
-      // Silently fail
-    });
-  }
-}
-
-/**
- * Show the save confirmation message briefly.
- */
-function showSaveConfirmation() {
-  mdSaveConfirmation.hidden = false;
-
-  if (mdSaveConfirmTimer) {
-    clearTimeout(mdSaveConfirmTimer);
-  }
-
-  mdSaveConfirmTimer = setTimeout(() => {
-    mdSaveConfirmation.hidden = true;
-  }, 3000);
-}
-
-
-// ─── Code Editor ─────────────────────────────────────────────────────────────
-
-const EDITOR_DEBOUNCE_MS = 2000; // 2-second debounce (1s idle + 1s render)
-
-// DOM Elements — Code Editor
-const codeEditorSection = document.getElementById('code-editor-section');
-const codeEditor = document.getElementById('code-editor');
-const lineNumbers = document.getElementById('line-numbers');
-const editorErrors = document.getElementById('editor-errors');
-const editorStatus = document.getElementById('editor-status');
-
-let editorDebounceTimer = null;
-let lastValidRender = null; // Stores the last successfully rendered code
-let currentDiagramFormat = null; // 'mermaid' | 'plantuml'
-
-/**
- * Initialize the code editor when a diagram is generated.
- * Called from displayResults when outputType is 'diagram'.
- */
-function initCodeEditor(code, format) {
-  if (!codeEditorSection || !codeEditor) return;
-
-  currentDiagramFormat = format || 'mermaid';
-  codeEditor.value = code;
-  lastValidRender = code;
-
-  // Show the editor section
-  codeEditorSection.hidden = false;
-
-  // Update line numbers
-  updateLineNumbers();
-
-  // Clear any previous errors
-  clearEditorErrors();
-  setEditorStatus('');
-
-  // Attach event listeners (only once)
-  if (!codeEditor._editorInitialized) {
-    codeEditor.addEventListener('input', onEditorInput);
-    codeEditor.addEventListener('scroll', syncLineNumberScroll);
-    codeEditor.addEventListener('keydown', onEditorKeydown);
-    codeEditor._editorInitialized = true;
-  }
-}
-
-/**
- * Handle editor input with debounced re-render.
- */
-function onEditorInput() {
-  updateLineNumbers();
-  setEditorStatus('Editing...', 'saving');
-
-  // Clear previous debounce timer
-  if (editorDebounceTimer) {
-    clearTimeout(editorDebounceTimer);
-  }
-
-  // Set new debounce timer — 2 seconds after last keystroke
-  editorDebounceTimer = setTimeout(() => {
-    triggerEditorReRender();
-  }, EDITOR_DEBOUNCE_MS);
-}
-
-/**
- * Handle special keyboard shortcuts in the editor.
- * Native undo/redo (Ctrl+Z / Ctrl+Shift+Z / Cmd+Z / Cmd+Shift+Z)
- * is handled by the browser's textarea behavior.
- */
-function onEditorKeydown(e) {
-  // Tab key inserts spaces instead of changing focus
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const start = codeEditor.selectionStart;
-    const end = codeEditor.selectionEnd;
-    const value = codeEditor.value;
-
-    codeEditor.value = value.substring(0, start) + '  ' + value.substring(end);
-    codeEditor.selectionStart = codeEditor.selectionEnd = start + 2;
-
-    // Trigger input event so debounce picks it up
-    codeEditor.dispatchEvent(new Event('input'));
-  }
-}
-
-/**
- * Trigger re-render of the diagram after debounce.
- * Validates the code and updates the preview.
- */
-async function triggerEditorReRender() {
-  const code = codeEditor.value;
-
-  if (!code.trim()) {
-    clearEditorErrors();
-    setEditorStatus('');
+function renderDiagramFromJSON(jsonData) {
+  if (!drawflowEditor) initDrawflow();
+  if (!drawflowEditor) {
+    showDiagramError('Drawflow library not loaded');
     return;
   }
 
-  setEditorStatus('Rendering...', 'saving');
+  // Clear existing diagram
+  drawflowEditor.clear();
 
+  // Parse the JSON data
+  let diagram;
   try {
-    // Validate the diagram code via the backend
-    const validationResult = await validateDiagramCode(code, currentDiagramFormat);
-
-    if (validationResult.isValid) {
-      clearEditorErrors();
-      lastValidRender = code;
-      setEditorStatus('Valid', 'saved');
-
-      // Update the results content display
-      if (resultsContent) {
-        resultsContent.textContent = code;
-      }
-
-      // Dispatch a custom event for the diagram renderer (task 12.4 will handle this)
-      window.dispatchEvent(new CustomEvent('diagram-code-updated', {
-        detail: { code, format: currentDiagramFormat }
-      }));
-    } else {
-      // Show syntax errors
-      displayEditorErrors(validationResult.errors || []);
-      setEditorStatus('Syntax errors', 'saving');
-
-      // Highlight error lines in line numbers
-      highlightErrorLines(validationResult.errors || []);
-    }
-  } catch (err) {
-    // Network or server error — still show the code, don't block editing
-    setEditorStatus('Validation unavailable', '');
-  }
-}
-
-/**
- * Validate diagram code against the backend DSL validator.
- */
-async function validateDiagramCode(code, format) {
-  try {
-    const response = await fetch('/api/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, format }),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-
-    // If the validation endpoint doesn't exist yet, treat as valid
-    if (response.status === 404) {
-      return { isValid: true, errors: [] };
-    }
-
-    return { isValid: false, errors: [{ line: 1, column: 1, message: 'Validation failed', severity: 'error' }] };
+    diagram = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
   } catch {
-    // If server is unreachable, don't block editing
-    return { isValid: true, errors: [] };
-  }
-}
-
-/**
- * Update line numbers to match textarea content.
- */
-function updateLineNumbers() {
-  if (!lineNumbers || !codeEditor) return;
-
-  const lineCount = codeEditor.value.split('\n').length;
-  let html = '';
-
-  for (let i = 1; i <= lineCount; i++) {
-    html += `<span class="line-number" data-line="${i}">${i}</span>`;
-  }
-
-  lineNumbers.innerHTML = html;
-}
-
-/**
- * Sync line numbers scroll position with textarea scroll.
- */
-function syncLineNumberScroll() {
-  if (lineNumbers && codeEditor) {
-    lineNumbers.scrollTop = codeEditor.scrollTop;
-  }
-}
-
-/**
- * Display syntax errors in the error panel.
- */
-function displayEditorErrors(errors) {
-  if (!editorErrors) return;
-
-  if (!errors || errors.length === 0) {
-    clearEditorErrors();
+    showDiagramError('Failed to parse diagram data');
     return;
   }
 
-  editorErrors.innerHTML = errors.map((err) => `
-    <div class="editor-error-item">
-      <span class="editor-error-location">Ln ${err.line}${err.column ? `:${err.column}` : ''}</span>
-      <span class="editor-error-message">${escapeHtml(err.message)}</span>
-    </div>
-  `).join('');
-}
+  // Store current diagram JSON
+  currentDiagramJSON = diagram;
 
-/**
- * Highlight lines with errors in the line number gutter.
- */
-function highlightErrorLines(errors) {
-  if (!lineNumbers) return;
-
-  // Remove all existing error highlights
-  lineNumbers.querySelectorAll('.line-number.has-error').forEach((el) => {
-    el.classList.remove('has-error');
-  });
-
-  // Add error highlights
-  if (errors && errors.length > 0) {
-    errors.forEach((err) => {
-      const lineEl = lineNumbers.querySelector(`[data-line="${err.line}"]`);
-      if (lineEl) {
-        lineEl.classList.add('has-error');
-      }
-    });
-  }
-}
-
-/**
- * Clear all editor errors.
- */
-function clearEditorErrors() {
-  if (editorErrors) {
-    editorErrors.innerHTML = '';
+  // Add nodes
+  const nodeIdMap = {}; // maps our node id to drawflow's internal id
+  for (const node of diagram.nodes || []) {
+    const html = createNodeHTML(node);
+    const drawflowId = drawflowEditor.addNode(
+      node.id,         // name
+      1,               // inputs
+      1,               // outputs
+      node.x || 100,   // x position
+      node.y || 100,   // y position
+      node.group || '', // class
+      {},              // data
+      html             // html content
+    );
+    nodeIdMap[node.id] = drawflowId;
   }
 
-  // Remove error highlights from line numbers
-  if (lineNumbers) {
-    lineNumbers.querySelectorAll('.line-number.has-error').forEach((el) => {
-      el.classList.remove('has-error');
-    });
-  }
-}
-
-/**
- * Set the editor status indicator text.
- */
-function setEditorStatus(text, className) {
-  if (!editorStatus) return;
-
-  editorStatus.textContent = text;
-  editorStatus.className = 'editor-status';
-  if (className) {
-    editorStatus.classList.add(className);
-  }
-}
-
-/**
- * Get the current code editor content.
- * Useful for other components that need the current edited code.
- */
-function getEditorCode() {
-  return codeEditor ? codeEditor.value : '';
-}
-
-/**
- * Get the last valid render code (for fallback when syntax errors exist).
- */
-function getLastValidRender() {
-  return lastValidRender;
-}
-
-// ─── Code Editor Collapse/Expand ─────────────────────────────────────────────
-
-/**
- * Set the code editor body collapsed or expanded.
- */
-function setCodeEditorCollapsed(collapsed) {
-  const body = document.getElementById('code-editor-body');
-  const toggle = document.getElementById('code-editor-toggle');
-  if (!body || !toggle) return;
-
-  if (collapsed) {
-    body.classList.remove('expanded');
-    body.classList.add('collapsed');
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.querySelector('.toggle-text').textContent = 'Show Code';
-  } else {
-    body.classList.remove('collapsed');
-    body.classList.add('expanded');
-    toggle.setAttribute('aria-expanded', 'true');
-    toggle.querySelector('.toggle-text').textContent = 'Hide Code';
-  }
-}
-
-/**
- * Hide the code editor section entirely.
- */
-function hideCodeEditor() {
-  if (codeEditorSection) {
-    codeEditorSection.hidden = true;
-  }
-}
-
-// Initialize code editor toggle button
-document.addEventListener('DOMContentLoaded', () => {
-  const toggleBtn = document.getElementById('code-editor-toggle');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const body = document.getElementById('code-editor-body');
-      if (!body) return;
-      const isCollapsed = body.classList.contains('collapsed');
-      setCodeEditorCollapsed(!isCollapsed);
-    });
-  }
-});
-
-
-// ─── Diagram Visual Renderer Panel ──────────────────────────────────────────
-
-const DIAGRAM_RENDER_DEBOUNCE_MS = 2000; // 2-second debounce for re-render on edit
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 4.0;
-
-// Icon pack registration for architecture-beta diagrams
-const ICON_PACKS = ['aws', 'azure', 'gcp', 'logos'];
-let iconPacksRegistered = false;
-
-async function registerIconPacks() {
-  if (iconPacksRegistered) return;
-  if (typeof mermaid === 'undefined') return;
-
-  for (const pack of ICON_PACKS) {
-    try {
-      const response = await fetch(`https://unpkg.com/@iconify-json/${pack}/icons.json`);
-      if (response.ok) {
-        const iconData = await response.json();
-        mermaid.registerIconPacks([{ name: pack, icons: iconData }]);
-      }
-    } catch {
-      console.warn(`Failed to load icon pack: ${pack}`);
+  // Add connections
+  for (const conn of diagram.connections || []) {
+    const fromId = nodeIdMap[conn.from];
+    const toId = nodeIdMap[conn.to];
+    if (fromId && toId) {
+      drawflowEditor.addConnection(fromId, toId, 'output_1', 'input_1');
     }
   }
-  iconPacksRegistered = true;
+
+  hideDiagramError();
 }
 
-function isArchitectureBeta(code) {
-  const firstLine = code.trim().split('\n')[0].trim();
-  return firstLine.startsWith('architecture-beta');
+function createNodeHTML(node) {
+  const iconSvg = getIconSVG(node.icon);
+  return `
+    <div class="diagram-node" data-group="${node.group || ''}">
+      <div class="diagram-node-icon">${iconSvg}</div>
+      <div class="diagram-node-label">${escapeHtml(node.label)}</div>
+    </div>
+  `;
 }
 
-// Diagram preview state
-let diagramZoom = 1.0;
-let diagramPanX = 0;
-let diagramPanY = 0;
-let diagramIsPanning = false;
-let diagramPanStartX = 0;
-let diagramPanStartY = 0;
-let lastValidDiagramSvg = '';
-let lastValidDiagramCode = '';
-let diagramRenderDebounceTimer = null;
-let diagramRenderCounter = 0; // Unique ID counter for mermaid render calls
-let mermaidInitialized = false;
+// ─── Diagram Preview Panel ───────────────────────────────────────────────────
 
-// DOM Elements — Diagram Preview
 const diagramPreviewSection = document.getElementById('diagram-preview-section');
 const diagramPreviewViewport = document.getElementById('diagram-preview-viewport');
-const diagramPreviewCanvas = document.getElementById('diagram-preview-canvas');
-const diagramPreviewContent = document.getElementById('diagram-preview');
 const diagramErrorBanner = document.getElementById('diagram-error-banner');
 const diagramErrorMessage = document.getElementById('diagram-error-message');
 const diagramFallbackCode = document.getElementById('diagram-fallback-code');
 const diagramFallbackCodeContent = document.getElementById('diagram-fallback-code-content');
-const zoomInBtn = document.getElementById('zoom-in-btn');
-const zoomOutBtn = document.getElementById('zoom-out-btn');
-const zoomResetBtn = document.getElementById('zoom-reset-btn');
 const zoomLevelIndicator = document.getElementById('zoom-level-indicator');
-
-/**
- * Initialize Mermaid.js for client-side rendering.
- */
-async function initMermaid() {
-  if (mermaidInitialized) return;
-  if (typeof mermaid === 'undefined') return;
-
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'default',
-    securityLevel: 'loose',
-    fontFamily: 'var(--font-sans)',
-  });
-
-  mermaidInitialized = true;
-
-  // Register icon packs for architecture-beta diagrams
-  await registerIconPacks();
-}
-
-// ─── Diagram Export Functions ─────────────────────────────────────────────────
-
-function exportDiagramAsSvg() {
-  if (!lastValidDiagramSvg) return;
-  const blob = new Blob([lastValidDiagramSvg], { type: 'image/svg+xml' });
-  downloadBlob(blob, 'diagram.svg');
-}
-
-function exportDiagramAsPng() {
-  if (!lastValidDiagramSvg) return;
-  svgToImage(lastValidDiagramSvg, 'image/png', 'diagram.png');
-}
-
-function exportDiagramAsJpg() {
-  if (!lastValidDiagramSvg) return;
-  svgToImage(lastValidDiagramSvg, 'image/jpeg', 'diagram.jpg');
-}
-
-function svgToImage(svgString, mimeType, filename) {
-  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth * 2; // 2x for retina quality
-    canvas.height = img.naturalHeight * 2;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(2, 2);
-    if (mimeType === 'image/jpeg') {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    ctx.drawImage(img, 0, 0);
-    canvas.toBlob((blob) => {
-      downloadBlob(blob, filename);
-      URL.revokeObjectURL(url);
-    }, mimeType, 0.95);
-  };
-  img.src = url;
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 
 /**
  * Initialize diagram preview panel controls and event listeners.
@@ -1119,24 +603,35 @@ function downloadBlob(blob, filename) {
 function initDiagramPreview() {
   if (!diagramPreviewSection) return;
 
-  initMermaid();
-
   // Zoom controls
+  const zoomInBtn = document.getElementById('zoom-in-btn');
+  const zoomOutBtn = document.getElementById('zoom-out-btn');
+  const zoomResetBtn = document.getElementById('zoom-reset-btn');
+
   if (zoomInBtn) {
     zoomInBtn.addEventListener('click', () => {
-      setDiagramZoom(diagramZoom + ZOOM_STEP);
+      if (drawflowEditor) {
+        drawflowEditor.zoom_in();
+        updateZoomIndicator();
+      }
     });
   }
 
   if (zoomOutBtn) {
     zoomOutBtn.addEventListener('click', () => {
-      setDiagramZoom(diagramZoom - ZOOM_STEP);
+      if (drawflowEditor) {
+        drawflowEditor.zoom_out();
+        updateZoomIndicator();
+      }
     });
   }
 
   if (zoomResetBtn) {
     zoomResetBtn.addEventListener('click', () => {
-      resetDiagramView();
+      if (drawflowEditor) {
+        drawflowEditor.zoom_reset();
+        updateZoomIndicator();
+      }
     });
   }
 
@@ -1144,58 +639,53 @@ function initDiagramPreview() {
   const exportSvgBtn = document.getElementById('export-svg-btn');
   const exportPngBtn = document.getElementById('export-png-btn');
   const exportJpgBtn = document.getElementById('export-jpg-btn');
+  const exportJsonBtn = document.getElementById('export-json-btn');
 
   if (exportSvgBtn) exportSvgBtn.addEventListener('click', exportDiagramAsSvg);
   if (exportPngBtn) exportPngBtn.addEventListener('click', exportDiagramAsPng);
   if (exportJpgBtn) exportJpgBtn.addEventListener('click', exportDiagramAsJpg);
+  if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportDiagramAsJSON);
 
-  // Mouse wheel zoom
-  if (diagramPreviewViewport) {
-    diagramPreviewViewport.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      setDiagramZoom(diagramZoom + delta);
-    }, { passive: false });
-
-    // Pan via mouse drag
-    diagramPreviewViewport.addEventListener('mousedown', onDiagramPanStart);
-    document.addEventListener('mousemove', onDiagramPanMove);
-    document.addEventListener('mouseup', onDiagramPanEnd);
-
-    // Touch pan support
-    diagramPreviewViewport.addEventListener('touchstart', onDiagramTouchStart, { passive: false });
-    document.addEventListener('touchmove', onDiagramTouchMove, { passive: false });
-    document.addEventListener('touchend', onDiagramTouchEnd);
-  }
-
-  // Listen for code editor updates (dispatched by the code editor in task 12.2)
+  // Listen for code editor updates
   window.addEventListener('diagram-code-updated', (e) => {
-    const { code, format } = e.detail;
-    if (format === 'mermaid') {
-      renderDiagramPreview(code);
-    } else {
-      // For non-Mermaid formats, show raw code as fallback
-      showDiagramFallback(code);
+    const { code } = e.detail;
+    try {
+      renderDiagramFromJSON(code);
+    } catch {
+      showDiagramError('Invalid diagram JSON');
     }
   });
 }
 
+function updateZoomIndicator() {
+  if (!zoomLevelIndicator || !drawflowEditor) return;
+  const zoom = drawflowEditor.zoom || 1;
+  zoomLevelIndicator.textContent = `${Math.round(zoom * 100)}%`;
+}
+
 /**
- * Show the diagram preview panel and render diagram code.
- * Called when a new diagram is generated.
+ * Show the diagram preview panel and render diagram JSON.
  */
-function showDiagramPreview(code, format) {
+function showDiagramPreview(content) {
   if (!diagramPreviewSection) return;
 
   diagramPreviewSection.hidden = false;
   hideDiagramError();
   hideDiagramFallback();
 
-  if (format === 'mermaid') {
-    renderDiagramPreview(code);
-  } else {
-    // Non-Mermaid formats (e.g., PlantUML) fall back to displaying raw code
-    showDiagramFallback(code);
+  // Try parsing as JSON and rendering with Drawflow
+  try {
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    if (parsed && parsed.nodes) {
+      initDrawflow();
+      renderDiagramFromJSON(parsed);
+    } else {
+      // Not valid diagram JSON, show as fallback
+      showDiagramFallback(typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+    }
+  } catch {
+    // Not JSON at all — show as raw code fallback
+    showDiagramFallback(content);
   }
 }
 
@@ -1208,94 +698,10 @@ function hideDiagramPreview() {
 }
 
 /**
- * Render a Mermaid diagram into the preview panel.
- * On success, stores the SVG as lastValidDiagramSvg.
- * On failure, shows an error banner and retains the last valid render.
- */
-async function renderDiagramPreview(code) {
-  if (!code || !code.trim()) {
-    if (diagramPreviewContent) {
-      diagramPreviewContent.innerHTML = '';
-    }
-    hideDiagramError();
-    return;
-  }
-
-  await initMermaid();
-
-  if (typeof mermaid === 'undefined') {
-    showDiagramFallback(code);
-    showDiagramError('Mermaid.js is not loaded. Displaying raw code.');
-    return;
-  }
-
-  diagramRenderCounter++;
-  const renderId = `diagram-render-${diagramRenderCounter}`;
-
-  try {
-    // Use mermaid.render to produce SVG
-    const { svg } = await mermaid.render(renderId, code);
-
-    // Successful render
-    lastValidDiagramSvg = svg;
-    lastValidDiagramCode = code;
-
-    if (diagramPreviewContent) {
-      diagramPreviewContent.innerHTML = svg;
-    }
-
-    hideDiagramError();
-    hideDiagramFallback();
-  } catch (err) {
-    // Rendering failed — show error but retain last valid render
-    const errorMsg = extractMermaidError(err);
-    showDiagramError(errorMsg);
-
-    if (lastValidDiagramSvg && diagramPreviewContent) {
-      // Retain last valid render
-      diagramPreviewContent.innerHTML = lastValidDiagramSvg;
-    } else {
-      // No previous valid render — fall back to raw code
-      showDiagramFallback(code);
-    }
-
-    // Clean up any error element mermaid may have inserted into DOM
-    const errorEl = document.getElementById(renderId);
-    if (errorEl) {
-      errorEl.remove();
-    }
-  }
-}
-
-/**
- * Extract a meaningful error message from a Mermaid rendering error.
- */
-function extractMermaidError(err) {
-  if (!err) return 'Diagram rendering failed.';
-
-  // Mermaid v11 may throw with a message containing parse error details
-  const msg = err.message || err.str || String(err);
-
-  // Try to extract line number from error message
-  const lineMatch = msg.match(/line\s*(\d+)/i) || msg.match(/at position\s*(\d+)/i);
-  if (lineMatch) {
-    return `Syntax error at line ${lineMatch[1]}: ${msg.slice(0, 120)}`;
-  }
-
-  // Truncate long messages
-  if (msg.length > 150) {
-    return msg.slice(0, 150) + '…';
-  }
-
-  return msg || 'Diagram rendering failed.';
-}
-
-/**
  * Show the error banner with a message.
  */
 function showDiagramError(message) {
   if (!diagramErrorBanner || !diagramErrorMessage) return;
-
   diagramErrorMessage.textContent = message;
   diagramErrorBanner.hidden = false;
 }
@@ -1317,7 +723,7 @@ function showDiagramFallback(code) {
   diagramFallbackCodeContent.textContent = code;
   diagramFallbackCode.hidden = false;
 
-  // Hide the main preview viewport since we're showing raw code
+  // Hide the main drawflow viewport since we're showing raw code
   if (diagramPreviewViewport) {
     diagramPreviewViewport.style.display = 'none';
   }
@@ -1328,7 +734,6 @@ function showDiagramFallback(code) {
  */
 function hideDiagramFallback() {
   if (!diagramFallbackCode) return;
-
   diagramFallbackCode.hidden = true;
 
   if (diagramPreviewViewport) {
@@ -1336,110 +741,467 @@ function hideDiagramFallback() {
   }
 }
 
-// ─── Zoom & Pan Controls ─────────────────────────────────────────────────────
+// ─── Diagram Export Functions ─────────────────────────────────────────────────
 
-/**
- * Set zoom level with clamping.
- */
-function setDiagramZoom(level) {
-  diagramZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, level));
-  applyDiagramTransform();
-  updateZoomIndicator();
+function exportDiagramAsSvg() {
+  const container = document.getElementById('drawflow');
+  if (!container) return;
+
+  // Serialize the drawflow container content as SVG
+  const svgContent = drawflowToSVG(container);
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  downloadBlob(blob, 'diagram.svg');
+}
+
+function exportDiagramAsPng() {
+  const container = document.getElementById('drawflow');
+  if (!container) return;
+
+  containerToImage(container, 'image/png', 'diagram.png');
+}
+
+function exportDiagramAsJpg() {
+  const container = document.getElementById('drawflow');
+  if (!container) return;
+
+  containerToImage(container, 'image/jpeg', 'diagram.jpg');
+}
+
+function exportDiagramAsJSON() {
+  if (!currentDiagramJSON) return;
+  const json = JSON.stringify(currentDiagramJSON, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  downloadBlob(blob, 'diagram.json');
 }
 
 /**
- * Reset zoom and pan to defaults.
+ * Convert the drawflow container to an SVG string.
  */
-function resetDiagramView() {
-  diagramZoom = 1.0;
-  diagramPanX = 0;
-  diagramPanY = 0;
-  applyDiagramTransform();
-  updateZoomIndicator();
+function drawflowToSVG(container) {
+  const rect = container.getBoundingClientRect();
+  const width = rect.width || 800;
+  const height = rect.height || 600;
+
+  // Create an SVG with a foreignObject containing the HTML
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">
+      ${container.innerHTML}
+    </div>
+  </foreignObject>
+</svg>`;
 }
 
 /**
- * Apply current zoom and pan transform to the canvas.
+ * Convert container to a raster image using canvas.
  */
-function applyDiagramTransform() {
-  if (!diagramPreviewCanvas) return;
+function containerToImage(container, mimeType, filename) {
+  const rect = container.getBoundingClientRect();
+  const width = rect.width || 800;
+  const height = rect.height || 600;
 
-  diagramPreviewCanvas.style.transform =
-    `translate(${diagramPanX}px, ${diagramPanY}px) scale(${diagramZoom})`;
+  // Use html2canvas approach via SVG foreignObject
+  const svgStr = drawflowToSVG(container);
+  const svgBase64 = btoa(unescape(encodeURIComponent(svgStr)));
+  const dataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const scale = 2;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    if (mimeType === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, filename);
+    }, mimeType, 0.95);
+  };
+  img.onerror = () => {
+    // Fallback: export as SVG
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    downloadBlob(blob, filename.replace(/\.(png|jpg)$/, '.svg'));
+  };
+  img.src = dataUrl;
 }
 
-/**
- * Update the zoom level indicator text.
- */
-function updateZoomIndicator() {
-  if (!zoomLevelIndicator) return;
-  zoomLevelIndicator.textContent = `${Math.round(diagramZoom * 100)}%`;
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
-// ─── Pan (Mouse Drag) ────────────────────────────────────────────────────────
 
-function onDiagramPanStart(e) {
-  // Only start pan on left mouse button
-  if (e.button !== 0) return;
+// ─── Markdown Editor ─────────────────────────────────────────────────────────
 
-  diagramIsPanning = true;
-  diagramPanStartX = e.clientX - diagramPanX;
-  diagramPanStartY = e.clientY - diagramPanY;
+const MD_MAX_CHARS = 100_000;
+const MD_DEBOUNCE_MS = 500;
 
-  if (diagramPreviewViewport) {
-    diagramPreviewViewport.style.cursor = 'grabbing';
+let mdInstance = null;
+let mdDebounceTimer = null;
+let mdSaveConfirmTimer = null;
+
+// DOM elements for Markdown editor
+const mdEditorSection = document.getElementById('markdown-editor-section');
+const mdEditorTextarea = document.getElementById('md-editor-textarea');
+const mdPreviewContent = document.getElementById('md-preview-content');
+const mdCharCounter = document.getElementById('md-char-counter');
+const mdLimitNotification = document.getElementById('md-limit-notification');
+const mdSaveConfirmation = document.getElementById('md-save-confirmation');
+const mdSaveBtn = document.getElementById('md-save-btn');
+const mdRenderError = document.getElementById('md-render-error');
+
+function initMarkdownIt() {
+  if (mdInstance) return mdInstance;
+
+  if (typeof markdownit === 'function') {
+    mdInstance = markdownit({
+      html: false,
+      linkify: true,
+      typographer: false,
+    });
   }
 
-  e.preventDefault();
+  return mdInstance;
 }
 
-function onDiagramPanMove(e) {
-  if (!diagramIsPanning) return;
+function showMarkdownEditor(content) {
+  if (!mdEditorSection) return;
 
-  diagramPanX = e.clientX - diagramPanStartX;
-  diagramPanY = e.clientY - diagramPanStartY;
-  applyDiagramTransform();
+  mdEditorSection.hidden = false;
+  mdEditorTextarea.value = content;
+
+  initMarkdownIt();
+
+  mdEditorTextarea.removeEventListener('input', handleMdEditorInput);
+  mdEditorTextarea.addEventListener('input', handleMdEditorInput);
+
+  mdSaveBtn.removeEventListener('click', handleMdSave);
+  mdSaveBtn.addEventListener('click', handleMdSave);
+
+  updateMdCharCounter();
+  renderMarkdownPreview();
 }
 
-function onDiagramPanEnd() {
-  if (!diagramIsPanning) return;
+function hideMarkdownEditor() {
+  if (!mdEditorSection) return;
+  mdEditorSection.hidden = true;
+}
 
-  diagramIsPanning = false;
+function handleMdEditorInput() {
+  const content = mdEditorTextarea.value;
 
-  if (diagramPreviewViewport) {
-    diagramPreviewViewport.style.cursor = 'grab';
+  if (content.length > MD_MAX_CHARS) {
+    mdEditorTextarea.value = content.slice(0, MD_MAX_CHARS);
+    mdLimitNotification.hidden = false;
+    mdEditorTextarea.disabled = true;
+
+    setTimeout(() => {
+      mdEditorTextarea.disabled = false;
+      mdEditorTextarea.focus();
+    }, 100);
+  } else {
+    mdLimitNotification.hidden = true;
+  }
+
+  updateMdCharCounter();
+
+  if (mdDebounceTimer) {
+    clearTimeout(mdDebounceTimer);
+  }
+  mdDebounceTimer = setTimeout(() => {
+    renderMarkdownPreview();
+  }, MD_DEBOUNCE_MS);
+}
+
+function updateMdCharCounter() {
+  const length = mdEditorTextarea.value.length;
+  mdCharCounter.textContent = `${length.toLocaleString()} / 100,000`;
+
+  mdCharCounter.classList.remove('near-limit', 'at-limit');
+  if (length >= MD_MAX_CHARS) {
+    mdCharCounter.classList.add('at-limit');
+  } else if (length >= MD_MAX_CHARS * 0.9) {
+    mdCharCounter.classList.add('near-limit');
   }
 }
 
-// ─── Pan (Touch) ─────────────────────────────────────────────────────────────
+function renderMarkdownPreview() {
+  const content = mdEditorTextarea.value;
 
-function onDiagramTouchStart(e) {
-  if (e.touches.length !== 1) return;
+  try {
+    const md = initMarkdownIt();
 
-  diagramIsPanning = true;
-  const touch = e.touches[0];
-  diagramPanStartX = touch.clientX - diagramPanX;
-  diagramPanStartY = touch.clientY - diagramPanY;
+    if (!md) {
+      showRawTextFallback(content);
+      return;
+    }
 
-  e.preventDefault();
+    const html = md.render(content);
+    mdPreviewContent.innerHTML = html;
+    mdPreviewContent.classList.remove('raw-text');
+    mdRenderError.hidden = true;
+  } catch (err) {
+    showRawTextFallback(content);
+  }
 }
 
-function onDiagramTouchMove(e) {
-  if (!diagramIsPanning || e.touches.length !== 1) return;
-
-  const touch = e.touches[0];
-  diagramPanX = touch.clientX - diagramPanStartX;
-  diagramPanY = touch.clientY - diagramPanStartY;
-  applyDiagramTransform();
-
-  e.preventDefault();
+function showRawTextFallback(content) {
+  mdPreviewContent.textContent = content;
+  mdPreviewContent.classList.add('raw-text');
+  mdRenderError.hidden = false;
 }
 
-function onDiagramTouchEnd() {
-  diagramIsPanning = false;
+function handleMdSave() {
+  const content = mdEditorTextarea.value;
+
+  if (!content.trim()) return;
+
+  try {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'document.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showSaveConfirmation();
+  } catch (err) {
+    navigator.clipboard.writeText(content).then(() => {
+      showSaveConfirmation();
+    }).catch(() => {});
+  }
 }
 
-// Initialize diagram preview on DOM ready
+function showSaveConfirmation() {
+  mdSaveConfirmation.hidden = false;
+
+  if (mdSaveConfirmTimer) {
+    clearTimeout(mdSaveConfirmTimer);
+  }
+
+  mdSaveConfirmTimer = setTimeout(() => {
+    mdSaveConfirmation.hidden = true;
+  }, 3000);
+}
+
+// ─── Code Editor ─────────────────────────────────────────────────────────────
+
+const EDITOR_DEBOUNCE_MS = 2000;
+
+const codeEditorSection = document.getElementById('code-editor-section');
+const codeEditor = document.getElementById('code-editor');
+const lineNumbers = document.getElementById('line-numbers');
+const editorErrors = document.getElementById('editor-errors');
+const editorStatus = document.getElementById('editor-status');
+
+let editorDebounceTimer = null;
+let lastValidRender = null;
+let currentDiagramFormat = null;
+
+function initCodeEditor(code, format) {
+  if (!codeEditorSection || !codeEditor) return;
+
+  currentDiagramFormat = format || 'json';
+
+  // Pretty-print JSON for the code editor
+  let displayCode = code;
+  try {
+    const parsed = JSON.parse(code);
+    displayCode = JSON.stringify(parsed, null, 2);
+  } catch {
+    displayCode = code;
+  }
+
+  codeEditor.value = displayCode;
+  lastValidRender = displayCode;
+
+  codeEditorSection.hidden = false;
+  updateLineNumbers();
+  clearEditorErrors();
+  setEditorStatus('');
+
+  if (!codeEditor._editorInitialized) {
+    codeEditor.addEventListener('input', onEditorInput);
+    codeEditor.addEventListener('scroll', syncLineNumberScroll);
+    codeEditor.addEventListener('keydown', onEditorKeydown);
+    codeEditor._editorInitialized = true;
+  }
+}
+
+function onEditorInput() {
+  updateLineNumbers();
+  setEditorStatus('Editing...', 'saving');
+
+  if (editorDebounceTimer) {
+    clearTimeout(editorDebounceTimer);
+  }
+
+  editorDebounceTimer = setTimeout(() => {
+    triggerEditorReRender();
+  }, EDITOR_DEBOUNCE_MS);
+}
+
+function onEditorKeydown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = codeEditor.selectionStart;
+    const end = codeEditor.selectionEnd;
+    const value = codeEditor.value;
+
+    codeEditor.value = value.substring(0, start) + '  ' + value.substring(end);
+    codeEditor.selectionStart = codeEditor.selectionEnd = start + 2;
+
+    codeEditor.dispatchEvent(new Event('input'));
+  }
+}
+
+async function triggerEditorReRender() {
+  const code = codeEditor.value;
+
+  if (!code.trim()) {
+    clearEditorErrors();
+    setEditorStatus('');
+    return;
+  }
+
+  setEditorStatus('Rendering...', 'saving');
+
+  try {
+    // Validate JSON
+    JSON.parse(code);
+    clearEditorErrors();
+    lastValidRender = code;
+    setEditorStatus('Valid JSON', 'saved');
+
+    // Update the diagram preview
+    window.dispatchEvent(new CustomEvent('diagram-code-updated', {
+      detail: { code, format: currentDiagramFormat }
+    }));
+  } catch (err) {
+    displayEditorErrors([{
+      line: 1,
+      column: 1,
+      message: `Invalid JSON: ${err.message}`,
+      severity: 'error'
+    }]);
+    setEditorStatus('JSON errors', 'saving');
+  }
+}
+
+function updateLineNumbers() {
+  if (!lineNumbers || !codeEditor) return;
+
+  const lineCount = codeEditor.value.split('\n').length;
+  let html = '';
+
+  for (let i = 1; i <= lineCount; i++) {
+    html += `<span class="line-number" data-line="${i}">${i}</span>`;
+  }
+
+  lineNumbers.innerHTML = html;
+}
+
+function syncLineNumberScroll() {
+  if (lineNumbers && codeEditor) {
+    lineNumbers.scrollTop = codeEditor.scrollTop;
+  }
+}
+
+function displayEditorErrors(errors) {
+  if (!editorErrors) return;
+
+  if (!errors || errors.length === 0) {
+    clearEditorErrors();
+    return;
+  }
+
+  editorErrors.innerHTML = errors.map((err) => `
+    <div class="editor-error-item">
+      <span class="editor-error-location">Ln ${err.line}${err.column ? `:${err.column}` : ''}</span>
+      <span class="editor-error-message">${escapeHtml(err.message)}</span>
+    </div>
+  `).join('');
+}
+
+function clearEditorErrors() {
+  if (editorErrors) {
+    editorErrors.innerHTML = '';
+  }
+
+  if (lineNumbers) {
+    lineNumbers.querySelectorAll('.line-number.has-error').forEach((el) => {
+      el.classList.remove('has-error');
+    });
+  }
+}
+
+function setEditorStatus(text, className) {
+  if (!editorStatus) return;
+
+  editorStatus.textContent = text;
+  editorStatus.className = 'editor-status';
+  if (className) {
+    editorStatus.classList.add(className);
+  }
+}
+
+function getEditorCode() {
+  return codeEditor ? codeEditor.value : '';
+}
+
+function getLastValidRender() {
+  return lastValidRender;
+}
+
+// ─── Code Editor Collapse/Expand ─────────────────────────────────────────────
+
+function setCodeEditorCollapsed(collapsed) {
+  const body = document.getElementById('code-editor-body');
+  const toggle = document.getElementById('code-editor-toggle');
+  if (!body || !toggle) return;
+
+  if (collapsed) {
+    body.classList.remove('expanded');
+    body.classList.add('collapsed');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.querySelector('.toggle-text').textContent = 'Show Code';
+  } else {
+    body.classList.remove('collapsed');
+    body.classList.add('expanded');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.querySelector('.toggle-text').textContent = 'Hide Code';
+  }
+}
+
+function hideCodeEditor() {
+  if (codeEditorSection) {
+    codeEditorSection.hidden = true;
+  }
+}
+
+// Initialize code editor toggle button
 document.addEventListener('DOMContentLoaded', () => {
-  initDiagramPreview();
+  const toggleBtn = document.getElementById('code-editor-toggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      const body = document.getElementById('code-editor-body');
+      if (!body) return;
+      const isCollapsed = body.classList.contains('collapsed');
+      setCodeEditorCollapsed(!isCollapsed);
+    });
+  }
 });

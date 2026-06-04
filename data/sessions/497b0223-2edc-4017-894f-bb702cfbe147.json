@@ -1,0 +1,22 @@
+{
+  "id": "497b0223-2edc-4017-894f-bb702cfbe147",
+  "createdAt": "2026-06-03T08:47:10.301Z",
+  "updatedAt": "2026-06-03T08:47:10.312Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Syntax error at line 20: Parsing failed: Lexer error on line 20, column 32: unexpected character: ->[<- at offset: 1089, skipped 1 characters. Le",
+      "response": {
+        "content": "sequenceDiagram\n    participant Alice\n    participant Bob\n    Alice->>Bob: Hello\n    Bob->>Alice: Hi\n    Alice->>Bob: How are you?\n    Bob->>Alice: I am good, thanks\n    Alice->>Bob: That is great\n    Bob->>Alice: Yes, it is\n    Alice-->>Bob: Okay, bye\n    Bob-->>Alice: Bye",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "sequence",
+        "sessionId": "497b0223-2edc-4017-894f-bb702cfbe147",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:47:10.312Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

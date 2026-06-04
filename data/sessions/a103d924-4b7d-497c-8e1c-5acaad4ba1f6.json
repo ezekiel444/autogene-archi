@@ -1,0 +1,22 @@
+{
+  "id": "a103d924-4b7d-497c-8e1c-5acaad4ba1f6",
+  "createdAt": "2026-06-03T08:00:52.988Z",
+  "updatedAt": "2026-06-03T08:00:52.991Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer\n",
+      "response": {
+        "content": "architecture-beta\n    group presentation(cloud)[Presentation Layer]\n    group application(cloud)[Application Layer]\n    group data(cloud)[Data Layer]\n    group analytics(cloud)[Analytics Layer]\n    group orchestration(cloud)[Orchestration Layer]\n\n    service s3(aws:s3)[AWS S3] in data\n    service functions(azure:functions)[Azure Functions] in application\n    service bigquery(gcp:bigquery)[GCP BigQuery] in analytics\n    service k8s(logos:kubernetes)[Kubernetes] in orchestration\n\n    service app(azure:app-service)[App Service] in application\n    service gke(gcp:gke)[GKE Cluster] in orchestration\n    service aks(azure:aks)[AKS Cluster] in orchestration\n    service eks(aws:eks)[EKS Cluster] in orchestration\n\n    presentation:R -- L:app\n    app:R -- L:functions\n    functions:R -- L:s3\n    functions:R -- L:bigquery\n    bigquery:B -- T:k8s\n    k8s:R -- L:gke\n    k8s:R -- L:aks\n    k8s:R -- L:eks\n    gke:R -- L:s3\n    aks:R -- L:s3\n    eks:R -- L:s3",
+        "outputType": "diagram",
+        "format": "plantuml",
+        "diagramType": "cloud-architecture",
+        "sessionId": "a103d924-4b7d-497c-8e1c-5acaad4ba1f6",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:00:52.991Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

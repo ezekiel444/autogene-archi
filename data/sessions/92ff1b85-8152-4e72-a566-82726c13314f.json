@@ -1,0 +1,22 @@
+{
+  "id": "92ff1b85-8152-4e72-a566-82726c13314f",
+  "createdAt": "2026-06-03T07:50:16.000Z",
+  "updatedAt": "2026-06-03T07:50:16.003Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design an AWS serverless API with API Gateway, Lambda, DynamoDB, S3, and CloudWatch monitoring",
+      "response": {
+        "content": "graph LR\n    participant API_Gateway as \"API Gateway\"\n    participant Lambda as \"AWS Lambda\"\n    participant DynamoDB as \"DynamoDB\"\n    participant S3 as \"S3\"\n    participant CloudWatch as \"CloudWatch\"\n    API_Gateway -->|REST API Request| Lambda\n    Lambda -->|CRUD Operations| DynamoDB\n    Lambda -->|File Upload/Download| S3\n    Lambda -->|Logging & Monitoring| CloudWatch\n    CloudWatch -->|Error/Performance Metrics| API_Gateway\n    CloudWatch -->|Error/Performance Metrics| Lambda\n    DynamoDB -->|Data Storage| Lambda\n    S3 -->|File Storage| Lambda\n    style API_Gateway fill:#fff,stroke:#000\n    style Lambda fill:#fff,stroke:#000\n    style DynamoDB fill:#fff,stroke:#000\n    style S3 fill:#fff,stroke:#000\n    style CloudWatch fill:#fff,stroke:#000",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "92ff1b85-8152-4e72-a566-82726c13314f",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T07:50:16.003Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

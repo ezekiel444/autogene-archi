@@ -1,0 +1,22 @@
+{
+  "id": "50b8900d-654c-4483-bc08-046ee6e65ca3",
+  "createdAt": "2026-06-04T06:21:55.979Z",
+  "updatedAt": "2026-06-04T06:21:55.982Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a cloud-native e-commerce platform using AWS S3 for product images and backups, Azure Functions for order processing and notifications, and GCP BigQuery for sales analytics. Use Kubernetes for container orchestration. Include CI/CD pipelines, autoscaling, load balancing, monitoring, disaster recovery, and secure communication between clouds.",
+      "response": {
+        "content": "{\n  \"nodes\": [\n    { \"id\": \"load-balancer\", \"label\": \"Load Balancer\", \"icon\": \"load-balancer\", \"group\": \"frontend\", \"x\": 150, \"y\": 100 },\n    { \"id\": \"cdn\", \"label\": \"Content Delivery\", \"icon\": \"cdn\", \"group\": \"frontend\", \"x\": 150, \"y\": 250 },\n    { \"id\": \"kubernetes\", \"label\": \"Kubernetes Cluster\", \"icon\": \"kubernetes\", \"group\": \"backend\", \"x\": 400, \"y\": 100 },\n    { \"id\": \"azure-functions\", \"label\": \"Order Processing\", \"icon\": \"azure-functions\", \"group\": \"backend\", \"x\": 400, \"y\": 250 },\n    { \"id\": \"gcp-bigquery\", \"label\": \"Sales Analytics\", \"icon\": \"gcp-bigquery\", \"group\": \"backend\", \"x\": 400, \"y\": 400 },\n    { \"id\": \"aws-s3\", \"label\": \"Product Images\", \"icon\": \"aws-s3\", \"group\": \"storage\", \"x\": 650, \"y\": 100 },\n    { \"id\": \"aws-s3-backup\", \"label\": \"Backups\", \"icon\": \"aws-s3\", \"group\": \"storage\", \"x\": 650, \"y\": 250 },\n    { \"id\": \"docker\", \"label\": \"Containerized App\", \"icon\": \"docker\", \"group\": \"backend\", \"x\": 400, \"y\": 150 },\n    { \"id\": \"monitoring\", \"label\": \"Monitoring\", \"icon\": \"monitoring\", \"group\": \"monitoring\", \"x\": 550, \"y\": 350 },\n    { \"id\": \"ci-cd\", \"label\": \"CI/CD Pipeline\", \"icon\": \"default\", \"group\": \"backend\", \"x\": 250, \"y\": 300 },\n    { \"id\": \"autoscaling\", \"label\": \"Autoscaling\", \"icon\": \"default\", \"group\": \"backend\", \"x\": 450, \"y\": 300 }\n  ],\n  \"connections\": [\n    { \"from\": \"load-balancer\", \"to\": \"kubernetes\", \"label\": \"Inbound Traffic\" },\n    { \"from\": \"kubernetes\", \"to\": \"azure-functions\", \"label\": \"Order Processing\" },\n    { \"from\": \"azure-functions\", \"to\": \"gcp-bigquery\", \"label\": \"Sales Data\" },\n    { \"from\": \"kubernetes\", \"to\": \"aws-s3\", \"label\": \"Product Images\" },\n    { \"from\": \"kubernetes\", \"to\": \"aws-s3-backup\", \"label\": \"Backups\" },\n    { \"from\": \"docker\", \"to\": \"kubernetes\", \"label\": \"Containerized App\" },\n    { \"from\": \"monitoring\", \"to\": \"kubernetes\", \"label\": \"Monitoring\" },\n    { \"from\": \"ci-cd\", \"to\": \"kubernetes\", \"label\": \"Deployment\" },\n    { \"from\": \"autoscaling\", \"to\": \"kubernetes\", \"label\": \"Scaling\" },\n    { \"from\": \"cdn\", \"to\": \"aws-s3\", \"label\": \"Content Delivery\" }\n  ],\n  \"groups\": [\n    { \"id\": \"frontend\", \"label\": \"Frontend\", \"color\": \"#e3f2fd\" },\n    { \"id\": \"backend\", \"label\": \"Backend\", \"color\": \"#f3e5f5\" },\n    { \"id\": \"storage\", \"label\": \"Storage\", \"color\": \"#e8f5e9\" },\n    { \"id\": \"monitoring\", \"label\": \"Monitoring\", \"color\": \"#fff3e0\" }\n  ]\n}",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "50b8900d-654c-4483-bc08-046ee6e65ca3",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-04T06:21:55.982Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

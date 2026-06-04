@@ -1,0 +1,22 @@
+{
+  "id": "ead1c6d8-65f7-44ab-8cdb-289e94095503",
+  "createdAt": "2026-06-03T08:46:30.301Z",
+  "updatedAt": "2026-06-03T08:46:30.330Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a cloud-native e-commerce platform using AWS S3 for product images and backups, Azure Functions for order processing and notifications, and GCP BigQuery for sales analytics. Use Kubernetes for container orchestration. Include CI/CD pipelines, autoscaling, load balancing, monitoring, disaster recovery, and secure communication between clouds.",
+      "response": {
+        "content": "architecture-beta\n    group presentation(cloud)[Presentation]\n    group application(server)[Application]\n    group data(disk)[Data]\n    group infrastructure(cloud)[Infrastructure]\n    group monitoring(cloud)[Monitoring]\n\n    service web(logos:nginx)[Web Server] in presentation\n    service cdn(logos:aws-cloudfront)[CloudFront CDN] in presentation\n    service s3(logos:aws-s3)[Product Images] in data\n    service s3backup(logos:aws-s3)[Backups] in data\n    service azurefunc(logos:azure)[Order Processing] in application\n    service azurefuncnotify(logos:azure)[Notifications] in application\n    service bigquery(logos:google-cloud)[Sales Analytics] in data\n    service k8s(logos:kubernetes)[Kubernetes] in infrastructure\n    service ci(logos:docker)[CI/CD Pipeline] in infrastructure\n    service loadbalancer(logos:nginx)[Load Balancer] in infrastructure\n    service autoscale(logos:aws-ecs)[Autoscaling] in infrastructure\n    service monitoringtool(logos:aws-cloudwatch)[Monitoring] in monitoring\n    service dr(logos:aws-rds)[Disaster Recovery] in infrastructure\n    service vpn(logos:aws-ec2)[Secure Communication] in infrastructure\n\n    cdn:R -- L:web\n    web:R -- L:azurefunc\n    azurefunc:R -- L:bigquery\n    azurefunc:B -- T:azurefuncnotify\n    azurefuncnotify:R -- L:s3\n    s3:R -- L:s3backup\n    k8s:R -- L:ci\n    ci:R -- L:loadbalancer\n    loadbalancer:R -- L:autoscale\n    autoscale:R -- L:monitoringtool\n    monitoringtool:R -- L:dr\n    dr:R -- L:vpn\n    vpn:B -- T:k8s\n    web:B -- T:monitoringtool\n    azurefunc:B -- T:monitoringtool\n    bigquery:B -- T:monitoringtool",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "ead1c6d8-65f7-44ab-8cdb-289e94095503",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:46:30.330Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

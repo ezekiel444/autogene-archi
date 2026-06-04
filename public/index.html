@@ -121,8 +121,8 @@
           </select>
         </div>
 
-        <!-- Output Format (shown in diagram mode) -->
-        <div class="form-group" id="output-format-group">
+        <!-- Output Format (hidden — always JSON/Drawflow now) -->
+        <div class="form-group" id="output-format-group" hidden>
           <label class="form-label">Output Format</label>
           <div class="radio-group" role="radiogroup" aria-label="Output format">
             <label class="radio-label">
@@ -191,6 +191,7 @@
               <button type="button" id="export-svg-btn" class="diagram-export-btn" title="Export as SVG">SVG</button>
               <button type="button" id="export-png-btn" class="diagram-export-btn" title="Export as PNG">PNG</button>
               <button type="button" id="export-jpg-btn" class="diagram-export-btn" title="Export as JPG">JPG</button>
+              <button type="button" id="export-json-btn" class="diagram-export-btn" title="Export as JSON">JSON</button>
             </div>
           </div>
         </div>
@@ -203,11 +204,9 @@
           </svg>
           <span id="diagram-error-message"></span>
         </div>
-        <!-- Diagram Render Container with pan support -->
+        <!-- Drawflow Interactive Diagram Container -->
         <div id="diagram-preview-viewport" class="diagram-preview-viewport">
-          <div id="diagram-preview-canvas" class="diagram-preview-canvas">
-            <div id="diagram-preview" class="diagram-preview-content"></div>
-          </div>
+          <div id="drawflow" class="drawflow-canvas"></div>
         </div>
         <!-- Fallback Raw Code Display -->
         <pre id="diagram-fallback-code" class="diagram-fallback-code" hidden><code id="diagram-fallback-code-content"></code></pre>
@@ -309,8 +308,9 @@
     <p>Ezekiel Matomi Lucky</p>
   </footer>
 
-  <!-- Mermaid.js CDN for client-side diagram rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <!-- Drawflow for interactive drag-and-drop diagrams -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
+  <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

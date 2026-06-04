@@ -1,0 +1,22 @@
+{
+  "id": "e28ad265-fb59-404e-8d14-0c9b7c0e84f3",
+  "createdAt": "2026-06-03T08:46:06.636Z",
+  "updatedAt": "2026-06-03T08:46:06.647Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a cloud-native e-commerce platform using AWS S3 for product images and backups, Azure Functions for order processing and notifications, and GCP BigQuery for sales analytics. Use Kubernetes for container orchestration. Include CI/CD pipelines, autoscaling, load balancing, monitoring, disaster recovery, and secure communication between clouds.",
+      "response": {
+        "content": "architecture-beta\n    group presentation(cloud)[Presentation Layer]\n    group application(server)[Application Layer]\n    group data(disk)[Data Layer]\n    group infrastructure(cloud)[Infrastructure Layer]\n    group monitoring(cloud)[Monitoring Layer]\n\n    service web(logos:nginx)[Web Server] in presentation\n    service cdn(logos:aws-cloudfront)[CloudFront CDN] in presentation\n    service s3(logos:aws-s3)[Product Images] in presentation\n    service azurefunc(logos:azure)[Order Processing] in application\n    service gcppubsub(logos:google-cloud)[Notification Queue] in application\n    service k8s(logos:kubernetes)[Container Orchestration] in infrastructure\n    service bigquery(logos:google-cloud)[Sales Analytics] in data\n    service azurefunc2(logos:azure)[Notification Service] in application\n    service gcpbigquery2(logos:google-cloud)[Data Warehouse] in data\n    service docker(logos:docker)[Container Runtime] in infrastructure\n    service redis(logos:redis)[Cache Layer] in infrastructure\n    service postgres(logos:postgresql)[Database] in data\n    service ci_cd(logos:github)[CI/CD Pipeline] in monitoring\n    service monitoring(logos:aws-cloudwatch)[Monitoring Service] in monitoring\n    service loadbalancer(logos:nginx)[Load Balancer] in infrastructure\n    service autoscaler(logos:kubernetes)[Autoscaler] in infrastructure\n\n    web:R -- L:cdn\n    cdn:R -- L:s3\n    s3:R -- L:azurefunc\n    azurefunc:R -- L:gcppubsub\n    gcppubsub:R -- L:azurefunc2\n    azurefunc2:R -- L:bigquery\n    bigquery:R -- L:gcpbigquery2\n    gcpbigquery2:R -- L:postgres\n    k8s:R -- L:docker\n    docker:R -- L:redis\n    redis:R -- L:postgres\n    ci_cd:R -- L:monitoring\n    monitoring:R -- L:loadbalancer\n    loadbalancer:R -- L:autoscaler\n    autoscaler:B -- T:k8s\n    web:B -- T:ci_cd\n    s3:B -- T:monitoring\n    azurefunc:B -- T:monitoring\n    gcppubsub:B -- T:monitoring\n    azurefunc2:B -- T:monitoring\n    bigquery:B -- T:monitoring\n    gcpbigquery2:B -- T:monitoring\n    postgres:B -- T:monitoring\n    docker:B -- T:monitoring\n    redis:B -- T:monitoring\n    k8s:B -- T:monitoring\n    loadbalancer:B -- T:monitoring\n    autoscaler:B -- T:monitoring",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "e28ad265-fb59-404e-8d14-0c9b7c0e84f3",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:46:06.647Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}

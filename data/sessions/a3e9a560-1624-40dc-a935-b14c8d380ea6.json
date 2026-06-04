@@ -1,0 +1,22 @@
+{
+  "id": "a3e9a560-1624-40dc-a935-b14c8d380ea6",
+  "createdAt": "2026-06-03T08:05:19.785Z",
+  "updatedAt": "2026-06-03T08:05:19.787Z",
+  "exchanges": [
+    {
+      "index": 0,
+      "prompt": "Design a multi-cloud architecture using AWS S3 for storage, Azure Functions for compute, and GCP BigQuery for analytics with a Kubernetes orchestration layer",
+      "response": {
+        "content": "graph TD\n    subgraph Cloud Providers\n        AWS_S3[Amazon S3] -->|Object Storage| Kubernetes\n        Azure_Functions[Azure Functions] -->|Serverless Compute| Kubernetes\n        GCP_BigQuery[Google BigQuery] -->|Data Analytics| Kubernetes\n    end\n    subgraph Kubernetes\n        Kubernetes -->|Orchestration| AWS_S3\n        Kubernetes -->|Orchestration| Azure_Functions\n        Kubernetes -->|Orchestration| GCP_BigQuery\n    end\n    subgraph Applications\n        App1[Application 1] -->|Data Ingestion| AWS_S3\n        App2[Application 2] -->|Event Processing| Azure_Functions\n        App3[Application 3] -->|Data Querying| GCP_BigQuery\n    end\n    subgraph Networks\n        VPC1[VPC 1] -.->|Network Connectivity| Kubernetes\n        VPC2[VPC 2] -.->|Network Connectivity| Kubernetes\n    end\n    AWS_S3 -.-> |Data Replication| GCP_BigQuery\n    Azure_Functions -.-> |Function Invocation| App2\n    GCP_BigQuery -.-> |Query Results| App3",
+        "outputType": "diagram",
+        "format": "mermaid",
+        "diagramType": "cloud-architecture",
+        "sessionId": "a3e9a560-1624-40dc-a935-b14c8d380ea6",
+        "exchangeIndex": 0
+      },
+      "timestamp": "2026-06-03T08:05:19.787Z"
+    }
+  ],
+  "outputType": "diagram",
+  "currentVersion": 1
+}
