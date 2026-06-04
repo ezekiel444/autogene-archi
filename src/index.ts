@@ -23,6 +23,13 @@ app.use(express.json({ limit: '50mb' }));
 // Request ID middleware
 app.use(requestIdMiddleware);
 
+// Author signature header (embedded in all responses)
+app.use((_req, res, next) => {
+  res.setHeader('X-Powered-By', 'AI Diagram Generator by Ezekiel Matomi Lucky');
+  res.setHeader('X-Author', 'Ezekiel Matomi Lucky');
+  next();
+});
+
 // Serve static files from public/ directory for the web UI
 app.use(express.static(join(process.cwd(), 'public')));
 
