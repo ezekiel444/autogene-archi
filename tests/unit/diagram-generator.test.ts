@@ -471,3 +471,312 @@ describe('Diagram Generator', () => {
     });
   });
 });
+
+// ─── Connectivity & Template Wiring Tests ────────────────────────────────────
+
+describe('Diagram Generator — connectivity enforcement', () => {
+  let generate: (prompt: string, context: GenerationContext) => Promise<any>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const mod = await import('@/domain/diagram-generator.js');
+    generate = mod.generate;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('emits CONNECTIVITY rules in the system prompt', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('A simple flow', { diagramType: 'flowchart' });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.role).toBe('system');
+    expect(systemMessage.content).toContain('CONNECTIVITY');
+    expect(systemMessage.content).toMatch(/no isolated nodes/i);
+    expect(systemMessage.content).toMatch(/single connected graph/i);
+  });
+
+  it('does not call repair pass when diagram is well-connected', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    const result = await generate('A connected flow', { diagramType: 'flowchart' });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(result.isValid).toBe(true);
+    expect(result.validationErrors).toBeUndefined();
+  });
+
+  it('triggers a repair pass when an orphan node is detected', async () => {
+    const ORPHAN_DIAGRAM_JSON = JSON.stringify({
+      nodes: [
+        { id: 'a', label: 'A', icon: 'default', x: 100, y: 100 },
+        { id: 'b', label: 'B', icon: 'default', x: 300, y: 100 },
+        { id: 'orphan', label: 'Orphan', icon: 'default', x: 600, y: 300 },
+      ],
+      connections: [{ from: 'a', to: 'b', label: 'next' }],
+      groups: [],
+    });
+
+    const REPAIRED_DIAGRAM_JSON = JSON.stringify({
+      nodes: [
+        { id: 'a', label: 'A', icon: 'default', x: 100, y: 100 },
+        { id: 'b', label: 'B', icon: 'default', x: 300, y: 100 },
+        { id: 'orphan', label: 'Orphan', icon: 'default', x: 600, y: 300 },
+      ],
+      connections: [
+        { from: 'a', to: 'b', label: 'next' },
+        { from: 'b', to: 'orphan', label: 'reports' },
+      ],
+      groups: [],
+    });
+
+    mockGenerateText
+      .mockResolvedValueOnce(ORPHAN_DIAGRAM_JSON)
+      .mockResolvedValueOnce(REPAIRED_DIAGRAM_JSON);
+
+    const result = await generate('Plan with three steps', { diagramType: 'flowchart' });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+
+    // Repair call should mention the orphan id explicitly so the AI knows
+    // exactly what to wire up.
+    const repairUserMessage = mockGenerateText.mock.calls[1][0][1];
+    expect(repairUserMessage.role).toBe('user');
+    expect(repairUserMessage.content).toContain('orphan');
+
+    expect(result.code).toBe(REPAIRED_DIAGRAM_JSON);
+    expect(result.isValid).toBe(true);
+    expect(result.validationErrors).toBeUndefined();
+  });
+
+  it('triggers a repair pass when the diagram has multiple disconnected components', async () => {
+    const SPLIT_DIAGRAM_JSON = JSON.stringify({
+      nodes: [
+        { id: 'a', label: 'A', icon: 'default', x: 100, y: 100 },
+        { id: 'b', label: 'B', icon: 'default', x: 300, y: 100 },
+        { id: 'c', label: 'C', icon: 'default', x: 100, y: 400 },
+        { id: 'd', label: 'D', icon: 'default', x: 300, y: 400 },
+      ],
+      connections: [
+        { from: 'a', to: 'b', label: 'flows' },
+        { from: 'c', to: 'd', label: 'flows' },
+      ],
+      groups: [],
+    });
+
+    const JOINED_DIAGRAM_JSON = JSON.stringify({
+      nodes: [
+        { id: 'a', label: 'A', icon: 'default', x: 100, y: 100 },
+        { id: 'b', label: 'B', icon: 'default', x: 300, y: 100 },
+        { id: 'c', label: 'C', icon: 'default', x: 100, y: 400 },
+        { id: 'd', label: 'D', icon: 'default', x: 300, y: 400 },
+      ],
+      connections: [
+        { from: 'a', to: 'b', label: 'flows' },
+        { from: 'c', to: 'd', label: 'flows' },
+        { from: 'b', to: 'c', label: 'bridges' },
+      ],
+      groups: [],
+    });
+
+    mockGenerateText
+      .mockResolvedValueOnce(SPLIT_DIAGRAM_JSON)
+      .mockResolvedValueOnce(JOINED_DIAGRAM_JSON);
+
+    const result = await generate('Two stages with a bridge', { diagramType: 'flowchart' });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    const repairUserMessage = mockGenerateText.mock.calls[1][0][1];
+    expect(repairUserMessage.content).toMatch(/disconnected subgraphs/i);
+    expect(result.code).toBe(JOINED_DIAGRAM_JSON);
+    expect(result.isValid).toBe(true);
+  });
+
+  it('surfaces validation errors when the repair pass fails to fix all orphans', async () => {
+    const ORPHAN_DIAGRAM_JSON = JSON.stringify({
+      nodes: [
+        { id: 'a', label: 'A', icon: 'default', x: 100, y: 100 },
+        { id: 'b', label: 'B', icon: 'default', x: 300, y: 100 },
+        { id: 'orphan', label: 'Orphan', icon: 'default', x: 600, y: 300 },
+      ],
+      connections: [{ from: 'a', to: 'b', label: 'next' }],
+      groups: [],
+    });
+
+    // Repair returns the same broken diagram — no improvement.
+    mockGenerateText
+      .mockResolvedValueOnce(ORPHAN_DIAGRAM_JSON)
+      .mockResolvedValueOnce(ORPHAN_DIAGRAM_JSON);
+
+    const result = await generate('Plan', { diagramType: 'flowchart' });
+
+    expect(result.isValid).toBe(false);
+    expect(result.validationErrors).toBeDefined();
+    expect(result.validationErrors!.length).toBeGreaterThan(0);
+
+    const codes = result.validationErrors!.map((e: { code: string }) => e.code);
+    expect(codes).toContain('DIAGRAM_ISOLATED_NODES');
+  });
+
+  it('does not run connectivity logic on raw-text fallback (malformed JSON)', async () => {
+    mockGenerateText.mockResolvedValue('this is not json at all');
+
+    const result = await generate('Make a diagram', { diagramType: 'flowchart' });
+
+    // Only the original AI call — no second repair attempt.
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(result.code).toBe('this is not json at all');
+  });
+});
+
+describe('Diagram Generator — full template wiring', () => {
+  let generate: (prompt: string, context: GenerationContext) => Promise<any>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const mod = await import('@/domain/diagram-generator.js');
+    generate = mod.generate;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('injects template formattingRules into the diagram system prompt', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Make a flowchart', {
+      diagramType: 'flowchart',
+      outputFormat: 'mermaid',
+      template: {
+        id: 'test-template',
+        name: 'Test',
+        type: 'diagram',
+        subType: 'flowchart',
+        isBuiltIn: true,
+        structure: {
+          formattingRules: [
+            { rule: 'use-subgraphs-for-grouping', description: 'Group related steps into labeled subgraphs.' },
+          ],
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('Formatting rules:');
+    expect(systemMessage.content).toContain('use-subgraphs-for-grouping');
+    expect(systemMessage.content).toContain('Group related steps into labeled subgraphs.');
+  });
+
+  it('injects template layoutOrdering into the diagram system prompt', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Make a cloud arch', {
+      diagramType: 'cloud-architecture',
+      outputFormat: 'mermaid',
+      template: {
+        id: 'test-template',
+        name: 'Test',
+        type: 'diagram',
+        subType: 'cloud-architecture',
+        isBuiltIn: true,
+        structure: {
+          layoutOrdering: ['Frontend', 'Backend', 'Storage'],
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('Preferred layout/grouping order');
+    expect(systemMessage.content).toContain('Frontend');
+    expect(systemMessage.content).toContain('Backend');
+    expect(systemMessage.content).toContain('Storage');
+  });
+
+  it('combines diagramConstraints + formattingRules + layoutOrdering in a single prompt', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Make a flowchart', {
+      diagramType: 'flowchart',
+      template: {
+        id: 'rich-template',
+        name: 'Rich',
+        type: 'diagram',
+        subType: 'flowchart',
+        isBuiltIn: true,
+        structure: {
+          diagramConstraints: [
+            { constraint: 'top-down-flow', description: 'Use top-down direction.' },
+          ],
+          formattingRules: [
+            { rule: 'subgraphs', description: 'Use subgraphs for grouping.' },
+          ],
+          layoutOrdering: ['start', 'process', 'end'],
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('Template constraints:');
+    expect(systemMessage.content).toContain('Formatting rules:');
+    expect(systemMessage.content).toContain('Preferred layout/grouping order');
+  });
+});
+
+// ─── Icon catalog wiring ─────────────────────────────────────────────────────
+
+describe('Diagram Generator — icon catalog in prompt', () => {
+  let generate: (prompt: string, context: GenerationContext) => Promise<any>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const mod = await import('@/domain/diagram-generator.js');
+    generate = mod.generate;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('emits the categorized icon catalog grouped by platform', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Diagram an app on AWS', { diagramType: 'cloud-architecture' });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('AWS icons:');
+    expect(systemMessage.content).toContain('Azure icons:');
+    expect(systemMessage.content).toContain('Google Cloud (GCP) icons:');
+    expect(systemMessage.content).toContain('Generic / cloud-agnostic icons:');
+  });
+
+  it('emits platform-locking ICON SELECTION rules', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Plan an Azure deployment', { diagramType: 'cloud-architecture' });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('ICON SELECTION');
+    expect(systemMessage.content).toMatch(/Do NOT mix AWS, Azure, and GCP/);
+  });
+
+  it('exposes deep-platform icons (e.g. aws-cognito, azure-cosmos-db, gcp-bigquery)', async () => {
+    mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
+
+    await generate('Architect a system', { diagramType: 'cloud-architecture' });
+
+    const systemMessage = mockGenerateText.mock.calls[0][0][0];
+    expect(systemMessage.content).toContain('aws-cognito');
+    expect(systemMessage.content).toContain('azure-cosmos-db');
+    expect(systemMessage.content).toContain('gcp-bigquery');
+  });
+});

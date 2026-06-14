@@ -13,9 +13,16 @@ import type {
   OutputFormat,
   AttachmentContext,
   DiagramConstraint,
+  FormattingRule,
+  ValidationError,
   Exchange,
 } from '../types/index.js';
 import { DIAGRAM_GENERATION_TIMEOUT_MS, SUPPORTED_DIAGRAM_TYPES } from '../types/index.js';
+import {
+  ALL_ICON_NAMES,
+  buildIconSelectionRules,
+  formatIconCatalogForPrompt,
+} from './icon-catalog.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -132,6 +139,193 @@ function buildConstraintsSection(constraints: DiagramConstraint[]): string {
 }
 
 /**
+ * Builds template formatting-rules section for prompts.
+ */
+function buildFormattingRulesSection(rules: FormattingRule[]): string {
+  if (rules.length === 0) return '';
+
+  const items = rules.map((r) => `- ${r.rule}: ${r.description}`);
+  return `\n\nFormatting rules:\n${items.join('\n')}`;
+}
+
+/**
+ * Builds template layout-ordering section for prompts.
+ */
+function buildLayoutOrderingSection(ordering: string[]): string {
+  if (ordering.length === 0) return '';
+  return `\n\nPreferred layout/grouping order: ${ordering.join(' → ')}`;
+}
+
+/**
+ * Returns the canonical CONNECTIVITY block included in every diagram prompt.
+ * Forces the AI to produce a single connected graph with labeled edges.
+ */
+function buildConnectivityRulesSection(): string {
+  return [
+    '',
+    'CONNECTIVITY (CRITICAL — every diagram MUST be a fully connected architecture):',
+    '- Every node MUST appear in at least one connection. No isolated nodes.',
+    '- The diagram MUST form a single connected graph. No isolated subgraphs.',
+    '- For N nodes include AT LEAST N-1 connections so the architecture is end-to-end traceable.',
+    '- Every connection MUST have a short "label" describing what flows (data, request, event, dependency, message, signal, etc.).',
+    '- Each group MUST connect to at least one node outside the group; groups must not be islands.',
+    '- Provide a clear flow from entry points (user, client, external system) through processing nodes to terminal nodes (storage, response, output).',
+    '- Cross-group connections are encouraged where they reflect real interactions (e.g., compute → storage, frontend → backend, service → monitoring).',
+  ].join('\n');
+}
+
+// ─── Connectivity Analysis ───────────────────────────────────────────────────
+
+/**
+ * A minimal shape extracted from the diagram JSON for graph analysis.
+ */
+interface ParsedDiagramGraph {
+  nodes: Array<{ id: string; group?: string }>;
+  connections: Array<{ from: string; to: string }>;
+}
+
+/**
+ * Result of connectivity analysis on a parsed diagram.
+ */
+interface ConnectivityReport {
+  orphanNodeIds: string[];
+  componentCount: number;
+  totalNodes: number;
+  totalConnections: number;
+  isWellConnected: boolean;
+}
+
+/**
+ * Safely parse the diagram JSON for graph analysis. Returns null if the JSON
+ * cannot be parsed or has the wrong shape, in which case connectivity checks
+ * are skipped (graceful degradation).
+ */
+function safeParseDiagramGraph(jsonStr: string): ParsedDiagramGraph | null {
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const rawNodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
+    const rawConnections = Array.isArray(parsed.connections) ? parsed.connections : [];
+
+    const nodes: Array<{ id: string; group?: string }> = rawNodes
+      .filter(
+        (n: unknown): n is { id: string; group?: unknown } =>
+          typeof n === 'object' &&
+          n !== null &&
+          'id' in n &&
+          typeof (n as { id: unknown }).id === 'string',
+      )
+      .map((n: { id: string; group?: unknown }) => ({
+        id: n.id,
+        group: typeof n.group === 'string' ? n.group : undefined,
+      }));
+
+    const connections: Array<{ from: string; to: string }> = rawConnections
+      .filter(
+        (c: unknown): c is { from: string; to: string } =>
+          typeof c === 'object' &&
+          c !== null &&
+          'from' in c &&
+          'to' in c &&
+          typeof (c as { from: unknown }).from === 'string' &&
+          typeof (c as { to: unknown }).to === 'string',
+      )
+      .map((c: { from: string; to: string }) => ({ from: c.from, to: c.to }));
+
+    return { nodes, connections };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Analyzes connectivity of a parsed diagram graph.
+ * - orphanNodeIds: nodes with zero incident edges
+ * - componentCount: number of connected components in the undirected graph
+ * - isWellConnected: no orphans AND at most one component
+ */
+export function analyzeConnectivity(diagram: ParsedDiagramGraph): ConnectivityReport {
+  const totalNodes = diagram.nodes.length;
+  const totalConnections = diagram.connections.length;
+
+  if (totalNodes === 0) {
+    return {
+      orphanNodeIds: [],
+      componentCount: 0,
+      totalNodes: 0,
+      totalConnections: 0,
+      isWellConnected: true,
+    };
+  }
+
+  const nodeIdSet = new Set(diagram.nodes.map((n) => n.id));
+  const adj = new Map<string, Set<string>>();
+  for (const id of nodeIdSet) adj.set(id, new Set());
+
+  for (const c of diagram.connections) {
+    if (!nodeIdSet.has(c.from) || !nodeIdSet.has(c.to)) continue; // ignore dangling edges
+    if (c.from === c.to) continue; // self-loops don't count for connectivity
+    adj.get(c.from)!.add(c.to);
+    adj.get(c.to)!.add(c.from);
+  }
+
+  const orphanNodeIds: string[] = [];
+  for (const node of diagram.nodes) {
+    const neighbors = adj.get(node.id);
+    if (!neighbors || neighbors.size === 0) orphanNodeIds.push(node.id);
+  }
+
+  // BFS to count connected components
+  const visited = new Set<string>();
+  let componentCount = 0;
+  for (const node of diagram.nodes) {
+    if (visited.has(node.id)) continue;
+    componentCount++;
+    const queue: string[] = [node.id];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      for (const n of adj.get(cur) ?? []) {
+        if (!visited.has(n)) queue.push(n);
+      }
+    }
+  }
+
+  return {
+    orphanNodeIds,
+    componentCount,
+    totalNodes,
+    totalConnections,
+    isWellConnected: orphanNodeIds.length === 0 && componentCount <= 1,
+  };
+}
+
+/**
+ * Builds validation errors describing connectivity issues, suitable for
+ * surfacing to the client in DiagramResult.validationErrors.
+ */
+function buildConnectivityValidationErrors(report: ConnectivityReport): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (report.orphanNodeIds.length > 0) {
+    errors.push({
+      code: 'DIAGRAM_ISOLATED_NODES',
+      message: `Diagram contains ${report.orphanNodeIds.length} isolated node(s) with no connections.`,
+      details: { orphanNodeIds: report.orphanNodeIds },
+    });
+  }
+  if (report.componentCount > 1) {
+    errors.push({
+      code: 'DIAGRAM_DISCONNECTED_COMPONENTS',
+      message: `Diagram has ${report.componentCount} disconnected subgraph(s); expected a single connected architecture.`,
+      details: { componentCount: report.componentCount },
+    });
+  }
+  return errors;
+}
+
+/**
  * Infers diagram type from the AI response when not specified.
  * Looks for a "diagramType" field in the JSON or a "DiagramType:" line.
  */
@@ -178,16 +372,11 @@ function fixCommonMermaidSyntax(code: string): string {
 
 // ─── Available Icons ─────────────────────────────────────────────────────────
 
-const AVAILABLE_ICONS = [
-  'aws-lambda', 'aws-s3', 'aws-dynamodb', 'aws-api-gateway', 'aws-cloudwatch',
-  'aws-ec2', 'aws-rds', 'aws-sqs', 'aws-cloudfront', 'aws-sns', 'aws-ecs',
-  'aws-eks', 'aws-elasticache', 'aws-kinesis', 'aws-step-functions',
-  'azure', 'azure-functions', 'azure-storage', 'azure-sql', 'azure-cosmos-db',
-  'gcp', 'gcp-cloud-functions', 'gcp-cloud-storage', 'gcp-bigquery',
-  'kubernetes', 'docker', 'database', 'server', 'cloud', 'user',
-  'load-balancer', 'firewall', 'queue', 'cache', 'cdn', 'monitoring',
-  'default',
-];
+/**
+ * Flat list of every icon name recognized by the renderer. Sourced from
+ * `icon-catalog.ts` so backend (prompts) and frontend (SVGs) can never drift.
+ */
+const AVAILABLE_ICONS = ALL_ICON_NAMES;
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -225,7 +414,10 @@ export async function generate(
   );
 
   // Parse response
-  return parseAIResponse(aiResponse, format, diagramType);
+  const initial = parseAIResponse(aiResponse, format, diagramType);
+
+  // Connectivity safety net: orphan detection + at most one repair pass
+  return enforceConnectivity(initial, format, diagramType);
 }
 
 /**
@@ -264,7 +456,133 @@ export async function refine(
   );
 
   // Parse response
-  return parseAIResponse(aiResponse, format, diagramType);
+  const initial = parseAIResponse(aiResponse, format, diagramType);
+  return enforceConnectivity(initial, format, diagramType);
+}
+
+// ─── Connectivity Repair Pipeline ────────────────────────────────────────────
+
+/**
+ * After parsing an AI response, validates connectivity and runs at most one
+ * repair pass to fix isolated nodes / disconnected subgraphs.
+ *
+ * Returns the original result on parse failure, on repair failure, or when the
+ * diagram is already well-connected. When unfixed issues remain, surfaces them
+ * via `validationErrors` (and flips `isValid` to false) so callers can react.
+ */
+async function enforceConnectivity(
+  initial: DiagramResult,
+  format: OutputFormat,
+  diagramType: DiagramType | undefined,
+): Promise<DiagramResult> {
+  const parsed = safeParseDiagramGraph(initial.code);
+  // If we can't parse the diagram (raw-text fallback), skip connectivity logic.
+  if (!parsed || parsed.nodes.length === 0) return initial;
+
+  const initialReport = analyzeConnectivity(parsed);
+  if (initialReport.isWellConnected) return initial;
+
+  // One repair attempt with a focused system prompt.
+  let repaired: DiagramResult | null = null;
+  try {
+    repaired = await runRepairAttempt(initial.code, initialReport, format, diagramType);
+  } catch {
+    // Repair failed — fall through and surface the original issues.
+  }
+
+  const finalResult = repaired ?? initial;
+  const finalParsed = safeParseDiagramGraph(finalResult.code);
+  const finalReport = finalParsed
+    ? analyzeConnectivity(finalParsed)
+    : initialReport;
+
+  if (finalReport.isWellConnected) return finalResult;
+
+  // Still has issues — return result with diagnostic warnings attached.
+  const validationErrors = buildConnectivityValidationErrors(finalReport);
+  return {
+    ...finalResult,
+    isValid: false,
+    validationErrors,
+  };
+}
+
+/**
+ * Single AI repair pass: ask the model to add the minimum connections needed
+ * to make the diagram a single connected graph. Only accepts a result that
+ * strictly improves on the input.
+ */
+async function runRepairAttempt(
+  existingCode: string,
+  report: ConnectivityReport,
+  format: OutputFormat,
+  diagramType: DiagramType | undefined,
+): Promise<DiagramResult | null> {
+  const systemPrompt = buildRepairSystemPrompt(diagramType);
+  const userPrompt = buildRepairUserPrompt(existingCode, report);
+
+  const aiResponse = await generateText(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    {
+      timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
+      temperature: 0.2,
+      maxTokens: DEFAULT_MAX_TOKENS,
+    },
+  );
+
+  const repaired = parseAIResponse(aiResponse, format, diagramType);
+  const repairedParsed = safeParseDiagramGraph(repaired.code);
+  if (!repairedParsed) return null;
+
+  const repairedReport = analyzeConnectivity(repairedParsed);
+  const improvedOrphans = repairedReport.orphanNodeIds.length < report.orphanNodeIds.length;
+  const improvedComponents = repairedReport.componentCount < report.componentCount;
+  if (!improvedOrphans && !improvedComponents) return null;
+  return repaired;
+}
+
+function buildRepairSystemPrompt(diagramType: DiagramType | undefined): string {
+  const parts: string[] = [
+    'You are a diagram repair assistant. Your sole task is to add the missing connections needed to fix isolated nodes and disconnected subgraphs.',
+    'Preserve every existing node, group, label, position, icon, and existing connection EXACTLY.',
+    'Add only the minimum number of new connections required to make the diagram a single connected graph.',
+    'Each new connection MUST have a short "label" describing what flows between the nodes.',
+    'Output ONLY valid JSON in the same shape as the input. No commentary, no markdown.',
+    '',
+    'JSON shape: { "nodes": [...], "connections": [...], "groups": [...] }',
+  ];
+  if (diagramType) parts.push(`The diagram type is ${diagramType}.`);
+  return parts.join('\n');
+}
+
+function buildRepairUserPrompt(
+  existingCode: string,
+  report: ConnectivityReport,
+): string {
+  const issues: string[] = [];
+  if (report.orphanNodeIds.length > 0) {
+    issues.push(
+      `Isolated nodes (no connections): ${report.orphanNodeIds.join(', ')}.`,
+    );
+  }
+  if (report.componentCount > 1) {
+    issues.push(
+      `The diagram has ${report.componentCount} disconnected subgraphs. Connect them so the diagram forms a single connected graph.`,
+    );
+  }
+
+  return [
+    'The previous diagram has connectivity issues:',
+    issues.join('\n'),
+    '',
+    'Fix the diagram by adding the missing connections. Preserve all existing nodes, groups, and connections. Output ONLY the corrected JSON.',
+    '',
+    'Current diagram JSON:',
+    existingCode,
+  ].join('\n');
 }
 
 // ─── Prompt Builders ─────────────────────────────────────────────────────────
@@ -278,31 +596,124 @@ function getDiagramTypeGuidance(diagramType: DiagramType): string {
       return `This is a flowchart/process diagram. Use icons like "default" for process steps, and arrange nodes top-to-bottom or left-to-right to show process flow. Use descriptive labels for decision points and actions.`;
 
     case 'sequence':
-      return `This is a sequence diagram. Represent each participant as a node arranged horizontally (increasing x, same y). Connections represent messages between participants. Use labels on connections to describe the messages.`;
+      return `This is a sequence diagram showing interactions between real named services.
+- Represent each participant (API Gateway, AuthService, PaymentService, Database, ExternalProvider, etc.) as a node arranged horizontally at increasing x values, all at the same y.
+- Connections represent ordered messages. Label each connection with the actual operation: "POST /auth/token", "validateJWT", "charge(amount)", "INSERT order", etc.
+- Include at least one synchronous request/response pair, one async operation (dashed/event), and one error/alt path.
+- Use at least 5 distinct participants. Derive real names from the user's prompt.`;
 
     case 'class-diagram':
-      return `This is a class diagram. Each class is a node. Use connections to represent inheritance, composition, and associations. Label connections with relationship types.`;
+      return `This is a UML class diagram with domain-driven design.
+- Derive entity names from the user prompt (e.g. User, Order, Product, Payment, Inventory, etc.).
+- Include at least one abstract base class or interface, two concrete implementations, and at least one association/composition.
+- Label connections with relationship type and multiplicity: "extends", "implements", "1..* orders", "has many", "composed of".
+- Each class node label should be the class name. Use icon "default" for classes, "database" for repositories, "server" for services.
+- Minimum 8 nodes.`;
 
     case 'er-diagram':
-      return `This is an ER diagram. Each entity is a node. Use connections to represent relationships between entities. Label connections with cardinality (e.g., "1:N", "has many").`;
+      return `This is a production-ready Entity-Relationship diagram.
+- Derive entity names from the user prompt (e.g. User, Product, Order, OrderItem, Category, Review, Payment, Address).
+- Each entity MUST have representative attributes listed in the label (e.g. "Order | id, userId, total, status").
+- Include at least one M:N relationship with a junction/bridge table (e.g. OrderItem between Order and Product).
+- Label connections with precise cardinality: "1:1", "1:N", "M:N", "has many", "belongs to".
+- Minimum 6 entity nodes plus at least 1 junction table node.
+- Use icon "database" for entities and "data-warehouse" for junction tables.`;
 
     case 'state-diagram':
-      return `This is a state diagram. Each state is a node. Connections represent transitions between states. Label connections with trigger events or conditions.`;
+      return `This is a UML state machine diagram with guard conditions.
+- Include an initial state (label: "Start", icon "default"), at least one composite/nested state, and a terminal state (label: "End").
+- Derive states from the user prompt — use realistic names like "Idle", "Authenticating", "Processing", "Failed", "Completed", "Retrying".
+- Label every transition with: trigger [guard] / action notation e.g. "submitOrder [valid] / createInvoice".
+- Include at least one self-loop (retry), one error path (→ Failed → retry or End), and one happy path.
+- Minimum 6 state nodes.`;
 
     case 'network':
-      return `This is a network diagram. Represent network components (servers, firewalls, load balancers, databases) as nodes with appropriate icons. Group by network zone (DMZ, Internal, External).`;
+      return `This is a professional network topology diagram.
+- Zone groups: Internet, DMZ, Internal LAN, Secure Zone, Management.
+- Always include: Internet (user) → Firewall/FortiGate → DMZ (Reverse Proxy/Nginx, WAF) → Internal LAN (Load Balancer, App Servers, DB Cluster) → Secure Zone (Vault, LDAP) → Management (Monitoring, Logging, Bastion Host).
+- Use specific icons: firewall, proxy, load-balancer, server, database, monitoring, shield, key, user.
+- Label connections with protocol/port: "HTTPS:443", "SSH:22", "PostgreSQL:5432", "gRPC:50051", "LDAP:389".
+- Group by zone. Include a Bastion Host in the Management zone.
+- Minimum 12 nodes across at least 4 zones.`;
 
     case 'data-flow':
-      return `This is a data flow diagram. Represent data stores, processes, and external entities as nodes. Connections show data movement. Label connections with data descriptions.`;
+      return `This is a Level-1 Data Flow Diagram (DFD) with realistic data stores and processes.
+- External entities (users, external systems) on the left. Processes in the middle. Data stores on the right.
+- Derive process names from the prompt: "Validate Request", "Enrich Data", "Transform & Aggregate", "Persist Record", "Notify Downstream".
+- Each data store should be named: "UserDB", "EventLog", "CacheLayer", "S3 Archive".
+- Label every flow with the data being moved: "raw event", "validated payload", "enriched record", "audit log entry".
+- Include at least one data store that is read and written by different processes.
+- Use icons: user/browser for external entities, default/microservice for processes, database/nosql/object-storage for stores.
+- Minimum 8 nodes.`;
 
     case 'bpmn':
-      return `This is a BPMN process diagram. Represent activities, gateways, and events as nodes. Use connections to show process flow. Group related activities into pools/lanes using groups.`;
+      return `This is a BPMN 2.0 process diagram with proper event and gateway types.
+- Include: Start Event → one or more Tasks (User Task, Service Task) → at least one Exclusive Gateway (XOR decision) with labeled Yes/No branches → at least one Parallel Gateway → End Event.
+- Model a realistic business process from the prompt (e.g. "Order Processing", "User Onboarding", "Incident Response").
+- Use pools to separate actors: one pool per major participant (Customer, System, Finance, Ops).
+- Label gateway branches with conditions: "Payment Approved?", "Stock Available?", "Retry < 3?".
+- Include an error End Event on the exception path.
+- Use icon "default" for Tasks, "shield" for Gateways, "user" for User Tasks, "api" for Service Tasks.
+- Minimum 10 nodes across at least 2 pools.`;
 
     case 'cloud-architecture':
-      return `This is a cloud architecture diagram. Use cloud service icons (aws-lambda, aws-s3, aws-api-gateway, aws-ec2, aws-rds, aws-dynamodb, aws-sqs, aws-cloudfront, aws-cloudwatch, azure, gcp, kubernetes, docker, load-balancer, cdn, cache, queue, monitoring, database, server). Group services by logical layers (Frontend, Backend, Storage, Monitoring). Arrange left-to-right: ingress on left, compute in middle, storage on right.`;
+      return `You are generating a PRODUCTION-GRADE cloud architecture diagram. Think like a senior solutions architect.
+
+ARCHITECTURE SCOPE: Generate a realistic multi-tier, multi-service architecture for the described system. Do NOT generate a minimal toy diagram.
+
+NODE COUNT: Generate 14–22 nodes. A real production system always has multiple tiers.
+
+ENTRY POINT (MANDATORY): Always start with a "user" or "browser" node as the external actor.
+
+CANONICAL LAYER STRUCTURE (adapt to the detected platform):
+
+AWS architecture MUST follow this pattern unless the prompt says otherwise:
+  Ingress:     user → aws-route53 → aws-cloudfront → aws-waf → aws-elb
+  Compute:     aws-elb → (aws-ecs OR aws-eks OR aws-lambda) — include 2–3 compute services
+  Data:        compute → aws-rds (primary) + aws-aurora OR aws-rds-replica + aws-elasticache + aws-dynamodb (if NoSQL needed)
+  Storage:     aws-s3 (static assets + backups)
+  Messaging:   aws-sqs + aws-sns OR aws-eventbridge (for async/event flows)
+  Security:    aws-iam + aws-cognito + aws-kms (in Security group, connected to compute and data tiers)
+  Observability: aws-cloudwatch + aws-x-ray connected to ALL compute services
+
+Azure architecture MUST follow this pattern:
+  Ingress:     user → azure-traffic-manager → azure-front-door → azure-cdn → azure-load-balancer
+  Compute:     azure-aks OR azure-app-service + azure-functions (event-driven)
+  Data:        azure-sql + azure-cosmos-db + azure-redis
+  Messaging:   azure-service-bus + azure-event-hub
+  Security:    azure-active-directory + azure-key-vault
+  Observability: azure-monitor + azure-app-insights
+
+GCP architecture MUST follow this pattern:
+  Ingress:     user → gcp-cloud-dns → gcp-cloud-cdn → gcp-cloud-load-balancing → gcp-cloud-armor
+  Compute:     gcp-gke OR gcp-cloud-run + gcp-cloud-functions
+  Data:        gcp-cloud-sql + gcp-spanner OR gcp-firestore + gcp-memorystore
+  Messaging:   gcp-pubsub + gcp-eventarc
+  Security:    gcp-iam + gcp-kms + gcp-secret-manager
+  Observability: gcp-cloud-monitoring + gcp-cloud-logging
+
+GROUPS (MANDATORY — use these exact group names and colors):
+  { "id": "ingress",     "label": "Ingress & CDN",     "color": "#e0f2fe" }
+  { "id": "compute",     "label": "Compute",            "color": "#f0fdf4" }
+  { "id": "data",        "label": "Data & Storage",     "color": "#fef9c3" }
+  { "id": "messaging",   "label": "Messaging & Events", "color": "#fce7f3" }
+  { "id": "security",    "label": "Security & Identity","color": "#fef2f2" }
+  { "id": "observability","label": "Observability",     "color": "#f5f3ff" }
+
+MANDATORY CONNECTIONS (every architecture MUST have these cross-group flows):
+  - WAF/Shield → Load Balancer (labeled: "filtered HTTPS")
+  - Load Balancer → every compute service (labeled: "HTTP/gRPC")
+  - Every compute service → primary database (labeled: "SQL/read-write")
+  - Every compute service → cache (labeled: "cache read/write")
+  - Every compute service → object storage (labeled: "PUT/GET assets")
+  - Compute services → message queue (labeled: "publish event")
+  - Message queue → async compute (Lambda/Functions) (labeled: "trigger")
+  - Async compute → secondary data store (labeled: "write record")
+  - ALL compute AND data services → monitoring (labeled: "metrics & logs")
+  - Monitoring → alerting/tracing services (labeled: "alert/trace")`;
 
     default:
-      return `Arrange nodes logically based on the diagram content.`;
+      return `Arrange nodes logically based on the diagram content. Minimum 6 nodes.`;
   }
 }
 
@@ -332,15 +743,22 @@ function buildGenerateSystemPrompt(
   ]
 }`);
   parts.push('');
-  parts.push(`Available icon names: ${AVAILABLE_ICONS.join(', ')}`);
+  parts.push('');
+  parts.push(formatIconCatalogForPrompt());
+  parts.push(buildIconSelectionRules());
   parts.push('');
   parts.push('RULES:');
-  parts.push('- Each node MUST have: id (string, kebab-case), label (string, 1-4 words), icon (from available set), x (number 100-800), y (number 50-500)');
-  parts.push('- Space nodes with ~200px between them horizontally and ~150px vertically');
+  parts.push('- Each node MUST have: id (string, kebab-case), label (string, 1-4 words), icon (from available set), x (number 100-1200), y (number 50-800)');
+  parts.push('- Space nodes at least 220px apart horizontally and 160px apart vertically so they do not overlap');
   parts.push('- Group nodes logically and assign a "group" field matching a group id');
   parts.push('- Connections reference node ids via "from" and "to" fields');
-  parts.push('- Include 5-12 nodes for a rich diagram');
-  parts.push('- Groups should have distinct colors (use soft pastel hex colors)');
+  parts.push('- For cloud-architecture: generate 14-22 nodes for a realistic production diagram');
+  parts.push('- For all other diagram types: generate 7-15 nodes for a rich, readable diagram');
+  parts.push('- NEVER generate fewer than 6 nodes');
+  parts.push('- Groups should have distinct soft pastel colors (hex values)');
+
+  // Universal connectivity rules (applies to every diagram type)
+  parts.push(buildConnectivityRulesSection());
 
   if (diagramType) {
     parts.push('');
@@ -357,20 +775,18 @@ function buildGenerateSystemPrompt(
     );
   }
 
-  // Cloud architecture specific instructions
-  if (diagramType === 'cloud-architecture') {
-    parts.push('');
-    parts.push('For cloud architecture diagrams:');
-    parts.push('- Use specific cloud service icons (aws-lambda, aws-s3, aws-api-gateway, aws-ec2, aws-rds, aws-dynamodb, aws-sqs, aws-cloudfront, aws-cloudwatch, azure, gcp, kubernetes, docker)');
-    parts.push('- Create at least 3 logical groups (e.g., Frontend, Backend, Storage, Monitoring)');
-    parts.push('- Each group should have 2-4 services');
-    parts.push('- Arrange left-to-right: x=100-200 for frontend, x=350-450 for compute, x=600-700 for storage');
-    parts.push('- Use soft colors: Frontend=#e3f2fd, Backend=#f3e5f5, Storage=#e8f5e9, Monitoring=#fff3e0');
-  }
-
-  // Add template constraints
-  if (context.template?.structure?.diagramConstraints) {
-    parts.push(buildConstraintsSection(context.template.structure.diagramConstraints));
+  // Add template constraints, formatting rules, and layout ordering
+  if (context.template?.structure) {
+    const { diagramConstraints, formattingRules, layoutOrdering } = context.template.structure;
+    if (diagramConstraints && diagramConstraints.length > 0) {
+      parts.push(buildConstraintsSection(diagramConstraints));
+    }
+    if (formattingRules && formattingRules.length > 0) {
+      parts.push(buildFormattingRulesSection(formattingRules));
+    }
+    if (layoutOrdering && layoutOrdering.length > 0) {
+      parts.push(buildLayoutOrderingSection(layoutOrdering));
+    }
   }
 
   return parts.join('\n');
@@ -423,6 +839,10 @@ function buildRefineSystemPrompt(
 }`);
   parts.push('');
   parts.push(`Available icon names: ${AVAILABLE_ICONS.join(', ')}`);
+  parts.push(buildIconSelectionRules());
+
+  // Universal connectivity rules also apply during refinement
+  parts.push(buildConnectivityRulesSection());
 
   if (diagramType) {
     parts.push(`The diagram is a ${diagramType} diagram.`);
@@ -433,9 +853,18 @@ function buildRefineSystemPrompt(
     );
   }
 
-  // Add template constraints
-  if (context.template?.structure?.diagramConstraints) {
-    parts.push(buildConstraintsSection(context.template.structure.diagramConstraints));
+  // Add template constraints, formatting rules, and layout ordering
+  if (context.template?.structure) {
+    const { diagramConstraints, formattingRules, layoutOrdering } = context.template.structure;
+    if (diagramConstraints && diagramConstraints.length > 0) {
+      parts.push(buildConstraintsSection(diagramConstraints));
+    }
+    if (formattingRules && formattingRules.length > 0) {
+      parts.push(buildFormattingRulesSection(formattingRules));
+    }
+    if (layoutOrdering && layoutOrdering.length > 0) {
+      parts.push(buildLayoutOrderingSection(layoutOrdering));
+    }
   }
 
   return parts.join('\n');

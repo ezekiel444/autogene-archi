@@ -77,7 +77,7 @@ export default function App() {
         )}
       </main>
       <footer className="app-footer">
-        <p>Built by <strong>Ezekiel Matomi Lucky</strong></p>
+        <p><strong>Ezekiel Matomi Lucky</strong></p>
       </footer>
     </div>
   );

@@ -201,7 +201,22 @@ router.post('/api/generate', async (req: Request, res: Response) => {
     }
   }
 
-  // 7. Build generation context
+  // 7. Validate template compatibility with the resolved request type
+  if (template) {
+    const compat = templateManager.checkCompatibility(template, outputType);
+    if (!compat.isValid) {
+      res.status(400).json(
+        createErrorResponse(
+          compat.errors[0].code as ErrorCode,
+          compat.errors[0].message,
+          compat.errors[0].details,
+        ),
+      );
+      return;
+    }
+  }
+
+  // 8. Build generation context
   const context: GenerationContext = {
     sessionHistory,
     attachmentContexts: attachmentContexts.length > 0 ? attachmentContexts : undefined,

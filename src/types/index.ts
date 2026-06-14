@@ -238,7 +238,7 @@ export interface DiagramResult {
   format: OutputFormat;
   diagramType: DiagramType;
   isValid: boolean;
-  validationErrors?: SyntaxError[];
+  validationErrors?: ValidationError[];
 }
 
 // ─── Document Results ────────────────────────────────────────────────────────
