@@ -47,15 +47,20 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ### Run
 
 ```bash
-# Development mode (hot reload)
-pnpm dev
-
-# Production build
+# Production: build once, then serve everything from port 3000
 pnpm build
 pnpm start
+# → open http://localhost:3000
+
+# Development: run backend and frontend in separate terminals
+pnpm dev            # terminal 1 — backend on :3000 (hot reload)
+pnpm dev:frontend   # terminal 2 — frontend on :5173 (proxies /api to :3000)
+# → open http://localhost:5173
 ```
 
-Open **http://localhost:3000** in your browser.
+> Opening `http://localhost:3000` directly during development will fail to load
+> the UI unless you have run `pnpm build:frontend` at least once. The backend
+> serves the built UI from `public/`, which is git-ignored.
 
 ### Run Tests
 
