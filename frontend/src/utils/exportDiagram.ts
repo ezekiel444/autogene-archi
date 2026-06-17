@@ -33,7 +33,9 @@ export async function exportDiagram(format: 'svg' | 'png' | 'json', data?: unkno
     download(blob, 'diagram.svg');
   } else if (format === 'png' && element) {
     const dataUrl = await toPng(element, {
-      pixelRatio: 2,
+      pixelRatio: 3,
+      quality: 1,
+      backgroundColor: '#ffffff',
       filter: (node) => {
         if (node?.classList?.contains('react-flow__minimap')) return false;
         if (node?.classList?.contains('react-flow__controls')) return false;
