@@ -96,7 +96,7 @@ if (!existsSync(INDEX_HTML)) {
   );
 }
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`AI Diagram & Document Generator running on http://localhost:${PORT}`);
 });
 
