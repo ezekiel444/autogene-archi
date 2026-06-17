@@ -742,12 +742,48 @@ const CLOUD_ICONS: Record<string, string> = {
   default:          shapeDef(G),
 };
 
+// ─── Category Prefix Fallback Map ────────────────────────────────────────────
+// Maps recognized service-category keywords to their designated shape function.
+// Used for 2nd-tier resolution when an exact icon key is not found.
+
+const CATEGORY_PREFIXES: Record<string, (color: string) => string> = {
+  compute:    shapeVM,
+  storage:    shapeObjStorage,
+  database:   shapeSQLDB,
+  network:    shapeRouter,
+  queue:      shapeQueue,
+  monitoring: shapeMonitoring,
+  security:   shapeShield,
+  serverless: shapeFn,
+  container:  shapeCube,
+  analytics:  shapeAnalytics,
+};
+
 /**
  * Returns the SVG string for a given cloud icon name.
- * Falls back to the default icon if name is not found.
+ *
+ * Resolution order (3-tier):
+ *  1. Exact match in CLOUD_ICONS registry
+ *  2. Category prefix fallback — if the key contains a recognized category word,
+ *     return that category's shape rendered with the generic color
+ *  3. Default icon (rounded rect with centered circle)
  */
 export function getCloudIcon(iconName: string): string {
-  return CLOUD_ICONS[iconName] || CLOUD_ICONS['default'];
+  // Tier 1: exact match
+  if (CLOUD_ICONS[iconName]) {
+    return CLOUD_ICONS[iconName];
+  }
+
+  // Tier 2: category prefix fallback
+  const lowerName = iconName.toLowerCase();
+  for (const category of Object.keys(CATEGORY_PREFIXES)) {
+    if (lowerName.includes(category)) {
+      return CATEGORY_PREFIXES[category](G);
+    }
+  }
+
+  // Tier 3: generic default icon (rounded rect with centered circle)
+  return shapeDef(G);
 }
 
 /**

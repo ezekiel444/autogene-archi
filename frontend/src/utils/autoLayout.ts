@@ -1,41 +1,11 @@
 import dagre from '@dagrejs/dagre';
 import { MarkerType, type Node, type Edge } from '@xyflow/react';
 import type { DiagramData } from '../App';
+import { resolveEdgeStyle } from './edgeStyle';
 
 const NODE_WIDTH  = 160;
 const NODE_HEIGHT = 88;
 const GROUP_PADDING = 32;
-
-// ─── Edge color by label keyword ─────────────────────────────────────────────
-
-function edgeStyle(label: string): {
-  stroke: string;
-  strokeWidth: number;
-  strokeDasharray?: string;
-} {
-  const l = (label || '').toLowerCase();
-  if (/event|async|publish|subscribe|trigger|sns|sqs|pubsub/.test(l))
-    return { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '6 3' };
-  if (/https|http|rest|request|response|api/.test(l))
-    return { stroke: '#3b82f6', strokeWidth: 2 };
-  if (/grpc|rpc/.test(l))
-    return { stroke: '#8b5cf6', strokeWidth: 2 };
-  if (/sql|read|write|query|insert|db/.test(l))
-    return { stroke: '#10b981', strokeWidth: 2 };
-  if (/cache|redis|memcached/.test(l))
-    return { stroke: '#f97316', strokeWidth: 2 };
-  if (/log|metric|monitor|trace|alert/.test(l))
-    return { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 2' };
-  if (/error|fail|reject|dlq/.test(l))
-    return { stroke: '#ef4444', strokeWidth: 2, strokeDasharray: '3 3' };
-  if (/ssh|vpn|tunnel/.test(l))
-    return { stroke: '#64748b', strokeWidth: 1.5, strokeDasharray: '5 4' };
-  return { stroke: '#94a3b8', strokeWidth: 2 };
-}
-
-function isAsyncEdge(label: string): boolean {
-  return /event|async|publish|trigger|sns|sqs|pubsub|stream|kinesis/i.test(label);
-}
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -45,10 +15,10 @@ export function getAutoLayout(data: DiagramData): { nodes: Node[]; edges: Edge[]
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
     rankdir: 'LR',
-    nodesep: 90,
-    ranksep: 140,
-    marginx: 60,
-    marginy: 60,
+    nodesep: 50,
+    ranksep: 90,
+    marginx: 40,
+    marginy: 40,
   });
 
   for (const node of data.nodes) {
@@ -126,46 +96,51 @@ export function getAutoLayout(data: DiagramData): { nodes: Node[]; edges: Edge[]
       border: `1.5px solid ${box.color.replace(/f/g, 'd')}`,
       borderRadius: 12,
       zIndex: -1,
-      pointerEvents: 'none' as const,
     },
-    data: { label: box.label, color: box.color },
-    selectable: false,
-    draggable: false,
+    data: { label: box.label, color: box.color, groupId: grpId },
+    selectable: true,
+    draggable: true,
   }));
 
   // ── 4. Build styled edges ─────────────────────────────────────────────────
   const flowEdges: Edge[] = data.connections.map((conn, i) => {
     const lbl = conn.label || '';
-    const style = edgeStyle(lbl);
-    const animated = isAsyncEdge(lbl);
+    const resolved = resolveEdgeStyle(lbl, conn.color, conn.arrowStyle);
+
+    // Determine markerEnd based on resolved markerType
+    let markerEnd: Edge['markerEnd'] | undefined;
+    if (resolved.markerType === 'closed') {
+      markerEnd = {
+        type: MarkerType.ArrowClosed,
+        color: resolved.stroke,
+        width: 18,
+        height: 18,
+      };
+    } else if (resolved.markerType === 'open') {
+      markerEnd = {
+        type: MarkerType.Arrow,
+        color: resolved.stroke,
+        width: 18,
+        height: 18,
+      };
+    }
+    // 'none' → no markerEnd
 
     return {
       id: `e-${i}`,
       source: conn.from,
       target: conn.to,
-      label: lbl,
-      type: 'smoothstep',
-      animated,
-      style,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: style.stroke,
-        width: 18,
-        height: 18,
+      type: 'custom',
+      animated: resolved.animated,
+      markerEnd,
+      data: {
+        label: lbl,
+        stroke: resolved.stroke,
+        strokeWidth: resolved.strokeWidth,
+        strokeDasharray: resolved.strokeDasharray,
+        animated: resolved.animated,
+        markerType: resolved.markerType,
       },
-      labelStyle: {
-        fontSize: 10,
-        fontWeight: 500,
-        fill: '#374151',
-      },
-      labelBgStyle: {
-        fill: '#ffffff',
-        fillOpacity: 0.88,
-        stroke: style.stroke,
-        strokeWidth: 0.5,
-      },
-      labelBgPadding: [4, 6] as [number, number],
-      labelBgBorderRadius: 4,
     };
   });
 

@@ -20,6 +20,8 @@ export interface DiagramData {
     from: string;
     to: string;
     label?: string;
+    color?: string;
+    arrowStyle?: 'closed' | 'open' | 'none';
   }>;
   groups: Array<{
     id: string;
