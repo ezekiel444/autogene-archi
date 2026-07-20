@@ -1,7 +1,8 @@
 /**
- * AI client providing purpose-specific functions:
- * - `generateText` — Groq-only text completion (no Gemini fallback)
- * - `analyzeImage` — Gemini-only vision analysis (no Groq at all)
+ * AI client with automatic provider fallback:
+ * - `generateText` — Groq primary → Gemini fallback on rate limit/exhaustion.
+ *                     If Groq key is missing, Gemini is used as the sole provider.
+ * - `analyzeImage` — Gemini-only vision analysis (Groq doesn't support vision).
  *
  * The legacy `generateCompletion` is kept as a deprecated alias for `generateText`.
  */
@@ -264,9 +265,15 @@ async function callGeminiText(
 }
 
 /**
- * Generates text completion using Groq as primary provider.
- * On rate limit (429): automatically falls back to Gemini for text generation.
- * On other transient errors: retries Groq once then fails.
+ * Generates text completion with automatic provider fallback.
+ *
+ * Provider strategy:
+ * - If both keys are available: Groq is primary, Gemini is fallback on rate limit/exhaustion.
+ * - If only Gemini key is available: Gemini is used directly (with a logged notice).
+ * - If only Groq key is available: Groq is used with retry on transient errors.
+ *
+ * On rate limit (429): automatically switches to the secondary provider.
+ * On other transient errors: retries the current provider once then fails.
  * On non-transient errors: fails immediately.
  */
 export async function generateText(
@@ -281,16 +288,33 @@ export async function generateText(
     maxTokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
   };
 
-  // Attempt 1: Groq
+  // ─── Gemini-only mode (no Groq key) ──────────────────────────────────────
+  if (!config.GROQ_API_KEY) {
+    if (!config.GEMINI_API_KEY) {
+      throw new Error('No API keys configured. Cannot generate text.');
+    }
+    console.log('[ai-client] Groq unavailable — using Gemini as primary provider.');
+    return callGeminiTextWithRetry(messages, resolvedOptions, config.GEMINI_API_KEY);
+  }
+
+  // ─── Groq-only mode (no Gemini key) ──────────────────────────────────────
+  if (!config.GEMINI_API_KEY) {
+    return callGroqWithRetry(messages, resolvedOptions, config.GROQ_API_KEY);
+  }
+
+  // ─── Dual-provider mode: Groq primary, Gemini fallback ───────────────────
   try {
     return await callGroq(messages, resolvedOptions, config.GROQ_API_KEY);
   } catch (error) {
     // Rate limit: fall back to Gemini for text generation
     if (isRateLimitError(error)) {
+      const retryTime = extractRetryTime(error);
+      console.warn(
+        `[ai-client] Groq rate-limited${retryTime ? ` (retry in ${retryTime})` : ''}. Switching to Gemini.`
+      );
       try {
         return await callGeminiText(messages, resolvedOptions, config.GEMINI_API_KEY);
       } catch (geminiError) {
-        // Extract retry time from either error
         const groqRetry = extractRetryTime(error);
         const geminiRetry = extractRetryTime(geminiError);
         const retryMsg = groqRetry || geminiRetry
@@ -312,6 +336,7 @@ export async function generateText(
     } catch (retryError) {
       // If retry also hits rate limit, fall back to Gemini
       if (isRateLimitError(retryError)) {
+        console.warn('[ai-client] Groq rate-limited on retry. Switching to Gemini.');
         try {
           return await callGeminiText(messages, resolvedOptions, config.GEMINI_API_KEY);
         } catch (geminiError) {
@@ -329,10 +354,61 @@ export async function generateText(
   }
 }
 
+// ─── Internal helpers for single-provider modes ──────────────────────────────
+
+/**
+ * Calls Gemini with one retry on transient errors (used in Gemini-only mode).
+ */
+async function callGeminiTextWithRetry(
+  messages: ChatMessage[],
+  options: Required<TextCompletionOptions>,
+  apiKey: string,
+): Promise<string> {
+  try {
+    return await callGeminiText(messages, options, apiKey);
+  } catch (error) {
+    if (!isTransientError(error)) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Gemini text generation failed: ${reason}`);
+    }
+    // One retry on transient failure
+    try {
+      return await callGeminiText(messages, options, apiKey);
+    } catch (retryError) {
+      const reason = retryError instanceof Error ? retryError.message : String(retryError);
+      throw new Error(`Gemini text generation failed: ${reason}`);
+    }
+  }
+}
+
+/**
+ * Calls Groq with one retry on transient errors (used in Groq-only mode).
+ */
+async function callGroqWithRetry(
+  messages: ChatMessage[],
+  options: Required<TextCompletionOptions>,
+  apiKey: string,
+): Promise<string> {
+  try {
+    return await callGroq(messages, options, apiKey);
+  } catch (error) {
+    if (!isTransientError(error)) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Groq text generation failed: ${reason}`);
+    }
+    try {
+      return await callGroq(messages, options, apiKey);
+    } catch (retryError) {
+      const reason = retryError instanceof Error ? retryError.message : String(retryError);
+      throw new Error(`Groq text generation failed: ${reason}`);
+    }
+  }
+}
+
 /**
  * Analyzes an image using Gemini (vision provider).
  * Retries once on transient error, then fails with provider-specific error.
- * Never falls back to Groq.
+ * Never falls back to Groq (Groq doesn't support vision).
  */
 export async function analyzeImage(
   prompt: string,
@@ -340,6 +416,12 @@ export async function analyzeImage(
   options?: VisionAnalysisOptions,
 ): Promise<string> {
   const config = loadEnvConfig();
+
+  if (!config.GEMINI_API_KEY) {
+    throw new Error(
+      'GEMINI_API_KEY is required for image analysis. Please add it to your secrets.env file.'
+    );
+  }
 
   const resolvedOptions: Required<VisionAnalysisOptions> = {
     timeoutMs: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,

@@ -78,12 +78,22 @@ app.use(errorHandler);
 
 // Startup: check for API keys availability
 try {
-  loadEnvConfig();
-  console.log('API keys loaded successfully');
+  const config = loadEnvConfig();
+  const providers = config.availableProviders;
+
+  if (providers.includes('groq') && providers.includes('gemini')) {
+    console.log('API keys loaded: Groq (primary) + Gemini (fallback/vision)');
+  } else if (providers.includes('gemini') && !providers.includes('groq')) {
+    console.warn('GROQ_API_KEY is missing — Gemini will be used as the primary text provider.');
+    console.warn('Tip: Add GROQ_API_KEY to secrets.env to restore Groq as the primary provider.');
+  } else if (providers.includes('groq') && !providers.includes('gemini')) {
+    console.warn('GEMINI_API_KEY is missing — Groq will be used without fallback.');
+    console.warn('Image analysis will be unavailable until GEMINI_API_KEY is configured.');
+  }
 } catch (err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
-  console.error('Warning:', message);
-  console.error('AI generation will fail until API keys are configured.');
+  console.error('Error:', message);
+  console.error('AI generation will fail until at least one API key is configured.');
 }
 
 // Startup: warn if the frontend build is missing
