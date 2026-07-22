@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "npx concurrently \"tsx watch src/index.ts\" \"cd frontend && npx vite --host\"",
     "dev:frontend": "cd frontend && npm run dev",
-    "build": "tsc && cd frontend && npm run build",
+    "build": "tsc && cd frontend && pnpm install && pnpm run build",
     "build:frontend": "cd frontend && npm run build",
     "start": "node dist/index.js",
     "test": "vitest run",
