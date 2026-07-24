@@ -1,8 +1,9 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load secrets from secrets.env file
+// Load secrets from secrets.env file (local dev only; Vercel injects env vars directly)
 dotenv.config({ path: path.resolve(process.cwd(), 'secrets.env') });
+dotenv.config(); // Also load from .env if present
 
 export interface EnvConfig {
   GROQ_API_KEY: string | null;
