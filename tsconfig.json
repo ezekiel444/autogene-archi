@@ -20,6 +20,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "api/**/*"],
+  "include": ["src/**/*", "api/**/*", "netlify/functions/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }
