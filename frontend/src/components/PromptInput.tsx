@@ -56,7 +56,7 @@ export function PromptInput({ mode, onModeChange, onGenerate, isLoading, error }
     const options: Record<string, string> = {};
     if (diagramType) options.diagramType = diagramType;
     if (templateId) options.templateId = templateId;
-    if (mode === 'diagram') options.outputFormat = 'mermaid';
+    if (mode === 'diagram') options.outputFormat = 'node-graph';
 
     onGenerate(prompt, options);
   };

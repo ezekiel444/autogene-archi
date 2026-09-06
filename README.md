@@ -6,13 +6,13 @@ A local AI-powered tool that generates diagrams-as-code and structured technical
 
 ## Features
 
-- **AI Diagram Generation** — Describe a diagram in plain English, get rendered Mermaid or PlantUML code with live visual preview
+- **AI Diagram Generation** — Describe a diagram in plain English, get an interactive node/connection graph rendered on a live canvas (React Flow)
 - **AI Document Generation** — Generate structured technical documents (design docs, API docs, SOPs, specs) with split-pane Markdown editor
-- **Cloud Architecture Icons** — AWS, Azure, GCP, and Kubernetes icons rendered directly in diagrams via Mermaid's architecture-beta syntax
+- **Cloud Architecture Icons** — AWS, Azure, GCP, and Kubernetes service icons rendered directly on diagram nodes
 - **Iterative Refinement** — Follow-up prompts to modify diagrams/documents without starting over
 - **File Attachments** — Attach code, images, or PDFs for AI-informed generation
 - **Template System** — Built-in templates for consistent formatting, plus custom template support
-- **Live Rendering** — Mermaid diagrams render in-browser with zoom/pan controls
+- **Live Rendering** — Diagrams render in-browser on an interactive canvas with drag, zoom, and pan
 - **Dual AI Strategy** — Groq for fast text generation, Gemini for image/vision analysis
 
 ## Quick Start
@@ -182,12 +182,13 @@ curl -X POST http://localhost:3000/api/templates \
   }'
 ```
 
-## Output Formats
+## Output Format
 
-| Format | Best For | Rendering |
-|---|---|---|
-| **Mermaid** (default) | Most diagrams, renders in-browser | Live preview with zoom/pan |
-| **PlantUML** | Complex UML, sequence diagrams with detailed notation | Server-side via PlantUML public server |
+Diagrams are produced as a **node-graph**: a JSON `{ nodes, connections, groups }`
+object that the frontend renders as an interactive canvas (React Flow). Each node
+carries a label, an icon, an optional group, and a position; connections reference
+node ids and can carry a label and styling. This is the only diagram format the
+generator emits — there is no Mermaid/PlantUML text output.
 
 ## API Reference
 
@@ -201,7 +202,7 @@ Request body:
 {
   "prompt": "Create a flowchart for user login",
   "diagramType": "flowchart",
-  "outputFormat": "mermaid",
+  "outputFormat": "node-graph",
   "templateId": "flowchart-default",
   "sessionId": "optional-session-id",
   "attachments": [
@@ -228,14 +229,16 @@ PUT    /api/templates/:id          # Update custom template
 DELETE /api/templates/:id          # Delete custom template
 ```
 
-### DSL Validation
+### Diagram Validation
 ```
 POST /api/validate
 ```
+Validates a node-graph payload (parseable JSON, at least one node, connections
+referencing real node ids). `format` is optional and defaults to `node-graph`.
 ```json
 {
-  "code": "graph TD\n  A --> B",
-  "format": "mermaid"
+  "code": "{\"nodes\":[{\"id\":\"a\",\"label\":\"A\"}],\"connections\":[]}",
+  "format": "node-graph"
 }
 ```
 
@@ -251,26 +254,27 @@ POST /api/validate
 │   │   ├── session-manager.ts  # Session persistence and history
 │   │   └── template-manager.ts # Template CRUD and validation
 │   ├── domain/                 # Core generation logic
-│   │   ├── diagram-generator.ts    # AI-powered diagram code generation
+│   │   ├── diagram-generator.ts    # AI-powered node-graph diagram generation
 │   │   ├── document-generator.ts   # AI-powered document generation
 │   │   ├── attachment-processor.ts # File validation and content extraction
-│   │   └── dsl-validator.ts        # Mermaid/PlantUML syntax validation
+│   │   ├── icon-catalog.ts         # Cloud/service icon catalog for nodes
+│   │   └── dsl-validator.ts        # Node-graph structural validation
 │   ├── infrastructure/         # External service integrations
-│   │   ├── ai-client.ts       # Groq (text) + Gemini (vision) AI client
-│   │   └── diagram-renderer.ts # Server-side rendering support
+│   │   └── ai-client.ts       # Groq (text) + Gemini (vision) AI client
 │   ├── types/                  # TypeScript type definitions
 │   │   ├── index.ts           # All shared types and constants
 │   │   └── errors.ts          # Error codes enum
 │   ├── env.ts                 # Environment configuration
 │   └── index.ts               # Application entry point
-├── public/                     # Frontend (vanilla HTML/CSS/JS)
-│   ├── index.html             # Main page
-│   ├── styles.css             # Styling
-│   └── app.js                 # Client-side logic
+├── frontend/                   # React 19 + Vite web UI (builds into public/)
+│   └── src/                   # App, components, hooks, utils (React Flow canvas)
+├── public/                     # Built frontend assets (git-ignored, from build)
 ├── data/
+│   ├── sessions/              # Persisted session history
 │   └── templates/built-in/    # Built-in template JSON files
 ├── tests/
-│   ├── unit/                  # Unit tests (308 tests)
+│   ├── unit/                  # Unit tests
+│   ├── integration/           # API/route integration tests
 │   └── property/              # Property-based tests
 ├── secrets.env                # API keys (git-ignored)
 ├── package.json
@@ -282,7 +286,7 @@ POST /api/validate
 
 | Provider | Used For | Why |
 |---|---|---|
-| **Groq** (LLama 3.3 70B) | Text generation: diagram code, documents, prompt classification | Extremely fast inference (~200ms), great for structured output, cheap |
+| **Groq** (`openai/gpt-oss-120b`, configurable via `GROQ_MODEL`) | Text generation: diagram JSON, documents, prompt classification | Extremely fast inference, great for structured output, cheap |
 | **Gemini** (2.0 Flash) | Image analysis: interpreting attached screenshots/diagrams | Multimodal vision capabilities, understands images natively |
 
 This split means:
@@ -303,17 +307,18 @@ This split means:
 | Variable | Required | Description |
 |---|---|---|
 | `GROQ_API_KEY` | Yes | Groq API key for text generation |
+| `GROQ_MODEL` | No | Groq model ID (default: `openai/gpt-oss-120b`) |
 | `GEMINI_API_KEY` | Yes | Google AI API key for vision analysis |
 | `PORT` | No | Server port (default: 3000) |
 
 ## Tech Stack
 
 - **Runtime**: Node.js 22+
-- **Language**: TypeScript 5.8
+- **Language**: TypeScript 7
 - **Server**: Express 5
 - **AI**: Groq SDK + Google GenAI SDK
-- **Rendering**: Mermaid.js 11 (client-side), PlantUML (server via public API)
-- **Icons**: Iconify (AWS, Azure, GCP, Logos packs)
+- **Frontend**: React 19 + Vite, interactive diagram canvas via React Flow (@xyflow/react) with dagre auto-layout
+- **Icons**: Cloud/service icons (AWS, Azure, GCP, Kubernetes) rendered on nodes
 - **Testing**: Vitest + fast-check (property-based testing)
 - **Package Manager**: pnpm
 

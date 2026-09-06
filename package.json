@@ -5,10 +5,10 @@
   "description": "AI-powered tool for generating diagrams-as-code and structured technical documents from natural language prompts",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "npx concurrently \"tsx watch src/index.ts\" \"cd frontend && npx vite --host\"",
-    "dev:frontend": "cd frontend && npm run dev",
-    "build": "tsc && cd frontend && pnpm install && pnpm run build",
-    "build:frontend": "cd frontend && npm run build",
+    "dev": "concurrently \"tsx watch src/index.ts\" \"pnpm --dir frontend dev -- --host\"",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "build": "tsc && pnpm build:frontend",
+    "build:frontend": "pnpm --dir frontend install && pnpm --dir frontend build",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
@@ -16,26 +16,26 @@
     "test:integration": "vitest run tests/integration"
   },
   "dependencies": {
-    "@google/genai": "^2.8.0",
+    "@google/genai": "^2.21.0",
     "@netlify/functions": "^2.8.2",
     "@upstash/redis": "^1.38.0",
     "dotenv": "^17.4.2",
-    "express": "^5.0.1",
-    "groq-sdk": "^1.2.1",
-    "markdown-it": "^14.2.0",
-    "uuid": "^14.0.0"
+    "express": "^5.2.1",
+    "groq-sdk": "^1.6.0",
+    "markdown-it": "^15.0.1",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/markdown-it": "^14.1.2",
-    "@types/node": "^25.9.3",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.4.1",
     "@vercel/node": "^5.8.26",
-    "concurrently": "10.0.3",
-    "fast-check": "^4.8.0",
+    "concurrently": "10.0.5",
+    "fast-check": "^4.9.0",
     "supertest": "^7.2.2",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@9.1.0"
 }
