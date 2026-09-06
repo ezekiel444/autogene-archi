@@ -1,6 +1,6 @@
 [build]
   command = "cd frontend && pnpm install && pnpm run build"
-  publish = "frontend/dist"
+  publish = "public"
   functions = "netlify/functions"
 
 [build.environment]

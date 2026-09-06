@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'dist',
+    // Build into ../public so the Express server (src/index.ts serves public/)
+    // and the serverless deploys all use one consistent output directory.
+    outDir: '../public',
     emptyOutDir: true,
   },
   server: {

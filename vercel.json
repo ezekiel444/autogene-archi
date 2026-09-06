@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd frontend && pnpm install && pnpm run build",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "public",
   "framework": null,
   "rewrites": [
     { "source": "/api/generate", "destination": "/api/generate" },
