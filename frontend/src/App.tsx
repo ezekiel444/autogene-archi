@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { PromptInput } from './components/PromptInput';
 import { DiagramCanvas } from './components/DiagramCanvas';
+import { DiagramErrorBoundary } from './components/DiagramErrorBoundary';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { useGenerate } from './hooks/useGenerate';
 
@@ -111,7 +112,9 @@ export default function App() {
         />
 
         {diagramData && (
-          <DiagramCanvas data={diagramData} onChange={setDiagramData} />
+          <DiagramErrorBoundary>
+            <DiagramCanvas data={diagramData} onChange={setDiagramData} />
+          </DiagramErrorBoundary>
         )}
 
         {documentContent && !diagramData && (
