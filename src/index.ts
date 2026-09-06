@@ -39,10 +39,11 @@ app.use(express.static(PUBLIC_DIR));
 // Mount API routes
 app.use(router);
 
-// DSL validation endpoint for the code editor
+// Diagram validation endpoint for the code editor.
+// Defaults to the node-graph format the generator actually produces.
 app.post('/api/validate', (req, res) => {
-  const { code, format } = req.body as { code: string; format: OutputFormat };
-  const result = validate(code, format);
+  const { code, format } = req.body as { code: string; format?: OutputFormat };
+  const result = validate(code, format ?? 'node-graph');
   res.json(result);
 });
 

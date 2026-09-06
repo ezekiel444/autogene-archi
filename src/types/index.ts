@@ -22,9 +22,14 @@ export type DiagramType =
   | 'data-flow';
 
 /**
- * Supported diagram output DSL formats.
+ * Supported diagram output formats.
+ *
+ * `node-graph` is the format the generator actually produces: a JSON
+ * `{ nodes, connections, groups }` graph rendered interactively on the client
+ * (React Flow). `mermaid` and `plantuml` are retained for backward
+ * compatibility with older sessions/requests but are no longer emitted.
  */
-export type OutputFormat = 'mermaid' | 'plantuml';
+export type OutputFormat = 'node-graph' | 'mermaid' | 'plantuml';
 
 // ─── Document Types ──────────────────────────────────────────────────────────
 
@@ -363,7 +368,7 @@ export const RENDER_TIMEOUT_MS = 3_000;
 export const CLASSIFICATION_CONFIDENCE_THRESHOLD = 0.7;
 
 /** Supported diagram output formats */
-export const SUPPORTED_OUTPUT_FORMATS: OutputFormat[] = ['mermaid', 'plantuml'];
+export const SUPPORTED_OUTPUT_FORMATS: OutputFormat[] = ['node-graph', 'mermaid', 'plantuml'];
 
 /** Supported diagram types */
 export const SUPPORTED_DIAGRAM_TYPES: DiagramType[] = [

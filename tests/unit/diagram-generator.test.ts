@@ -83,14 +83,14 @@ describe('Diagram Generator', () => {
       });
     });
 
-    it('defaults to mermaid format when no format specified', async () => {
+    it('defaults to node-graph format when no format specified', async () => {
       mockGenerateText.mockResolvedValue(SIMPLE_DIAGRAM_JSON);
 
       const result = await generate('Create a chart', {
         diagramType: 'flowchart',
       });
 
-      expect(result.format).toBe('mermaid');
+      expect(result.format).toBe('node-graph');
     });
 
     it('uses plantuml format when specified', async () => {

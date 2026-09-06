@@ -239,4 +239,66 @@ describe('DSL Validator', () => {
       expect(error!.severity).toBe('error');
     });
   });
+
+  describe('validate - node-graph (default)', () => {
+    const graph = (obj: unknown) => JSON.stringify(obj);
+
+    it('accepts a valid node/connection graph', () => {
+      const code = graph({
+        nodes: [
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+        ],
+        connections: [{ from: 'a', to: 'b' }],
+      });
+      const result = validate(code);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('defaults to node-graph validation when no format is given', () => {
+      const code = graph({ nodes: [{ id: 'only', label: 'Only' }], connections: [] });
+      const result = validate(code);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('rejects invalid JSON', () => {
+      const result = validate('{ not valid json');
+      expect(result.isValid).toBe(false);
+      expect(result.errors[0].message).toContain('Invalid JSON');
+    });
+
+    it('rejects a graph with no nodes', () => {
+      const result = validate(graph({ nodes: [], connections: [] }));
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('at least one node'))).toBe(true);
+    });
+
+    it('rejects a node missing an id', () => {
+      const result = validate(graph({ nodes: [{ label: 'no id' }], connections: [] }));
+      expect(result.isValid).toBe(false);
+    });
+
+    it('rejects duplicate node ids', () => {
+      const result = validate(
+        graph({ nodes: [{ id: 'x' }, { id: 'x' }], connections: [] }),
+      );
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('Duplicate node id'))).toBe(true);
+    });
+
+    it('warns (but does not fail) on connections to unknown nodes', () => {
+      const result = validate(
+        graph({ nodes: [{ id: 'a' }], connections: [{ from: 'a', to: 'ghost' }] }),
+      );
+      // Dangling references are warnings, not hard errors.
+      expect(result.isValid).toBe(true);
+      expect(result.errors.some((e) => e.message.includes('unknown node "ghost"'))).toBe(true);
+    });
+
+    it('rejects a non-object JSON payload', () => {
+      const result = validate('[1, 2, 3]');
+      expect(result.isValid).toBe(false);
+    });
+  });
 });
