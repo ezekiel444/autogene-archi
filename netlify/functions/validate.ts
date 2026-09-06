@@ -26,8 +26,8 @@ export const handler: Handler = async (event: HandlerEvent) => {
     };
   }
 
-  const { code, format } = JSON.parse(event.body || '{}') as { code: string; format: OutputFormat };
-  const result = validate(code, format);
+  const { code, format } = JSON.parse(event.body || '{}') as { code: string; format?: OutputFormat };
+  const result = validate(code, format ?? 'node-graph');
 
   return {
     statusCode: 200,

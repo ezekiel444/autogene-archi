@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const { code, format } = req.body as { code: string; format: OutputFormat };
-  const result = validate(code, format);
+  const { code, format } = req.body as { code: string; format?: OutputFormat };
+  const result = validate(code, format ?? 'node-graph');
   return res.status(200).json(result);
 }
