@@ -30,6 +30,34 @@ export interface DiagramData {
   }>;
 }
 
+/**
+ * Returns the parsed node-graph if `content` is a diagram payload
+ * (`{ nodes: [...], connections: [...] }` with at least one valid node),
+ * otherwise null. Used to render diagrams by content shape rather than
+ * relying solely on the API's outputType label.
+ */
+function parseDiagramGraph(content: string): DiagramData | null {
+  if (!content) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return null;
+  }
+  const obj = parsed as { nodes?: unknown; connections?: unknown };
+  if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return null;
+  const hasValidNode = obj.nodes.some(
+    (n) => typeof n === 'object' && n !== null && typeof (n as { id?: unknown }).id === 'string',
+  );
+  if (!hasValidNode) return null;
+  // connections is optional but must be an array when present.
+  if (obj.connections !== undefined && !Array.isArray(obj.connections)) return null;
+  return parsed as DiagramData;
+}
+
 export default function App() {
   const [mode, setMode] = useState<Mode>('diagram');
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
@@ -37,25 +65,37 @@ export default function App() {
 
   const { generate, isLoading, error } = useGenerate();
 
+  const showDiagram = (data: DiagramData) => {
+    setDiagramData(data);
+    setDocumentContent('');
+  };
+
+  const showDocument = (content: string) => {
+    setDocumentContent(content);
+    setDiagramData(null);
+  };
+
   const handleGenerate = async (prompt: string, options: Record<string, string>) => {
     const result = await generate(prompt, { ...options, mode });
+    if (!result) return;
 
-    if (result) {
-      if (result.outputType === 'diagram') {
-        try {
-          const parsed = JSON.parse(result.content);
-          setDiagramData(parsed);
-          setDocumentContent('');
-        } catch {
-          // If not valid JSON, show as document
-          setDocumentContent(result.content);
-          setDiagramData(null);
-        }
-      } else {
-        setDocumentContent(result.content);
-        setDiagramData(null);
-      }
+    // Prefer content shape over the response's outputType label. A node-graph
+    // payload ({ nodes, connections }) must always render on the canvas, even
+    // if the API mislabels it as a document (e.g. a stale serverless deploy).
+    const graph = parseDiagramGraph(result.content);
+    if (graph) {
+      showDiagram(graph);
+      return;
     }
+
+    if (result.outputType === 'diagram') {
+      // outputType says diagram but content isn't a parseable graph — surface
+      // the raw content in the editor so nothing is silently lost.
+      showDocument(result.content);
+      return;
+    }
+
+    showDocument(result.content);
   };
 
   return (

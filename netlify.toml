@@ -1,0 +1,50 @@
+[build]
+  command = "cd frontend && pnpm install && pnpm run build"
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["src/**"]
+
+# ─── API Redirects (rewrite /api/* to Netlify Functions) ─────────────────────
+
+[[redirects]]
+  from = "/api/generate"
+  to = "/.netlify/functions/generate"
+  status = 200
+
+[[redirects]]
+  from = "/api/validate"
+  to = "/.netlify/functions/validate"
+  status = 200
+
+[[redirects]]
+  from = "/api/sessions/:sessionId/undo"
+  to = "/.netlify/functions/sessions-undo?sessionId=:sessionId"
+  status = 200
+
+[[redirects]]
+  from = "/api/sessions/:sessionId"
+  to = "/.netlify/functions/sessions?sessionId=:sessionId"
+  status = 200
+
+[[redirects]]
+  from = "/api/templates/:templateId"
+  to = "/.netlify/functions/templates-by-id?templateId=:templateId"
+  status = 200
+
+[[redirects]]
+  from = "/api/templates"
+  to = "/.netlify/functions/templates"
+  status = 200
+
+# ─── SPA Fallback (must be last) ─────────────────────────────────────────────
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
