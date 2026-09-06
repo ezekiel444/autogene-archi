@@ -352,8 +352,10 @@ export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 /** Maximum document length in characters */
 export const MAX_DOCUMENT_LENGTH = 100_000;
 
-/** Diagram generation timeout in milliseconds */
-export const DIAGRAM_GENERATION_TIMEOUT_MS = 30_000;
+/** Diagram generation timeout in milliseconds.
+ * Architecture diagrams produce large JSON (14-22 nodes + many connections),
+ * so allow generous headroom before aborting. */
+export const DIAGRAM_GENERATION_TIMEOUT_MS = 60_000;
 
 /** Document generation timeout in milliseconds */
 export const DOCUMENT_GENERATION_TIMEOUT_MS = 30_000;

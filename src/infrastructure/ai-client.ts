@@ -53,15 +53,28 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
 function isTransientError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
-    // Network-related errors
+    // Network-related errors, timeouts/aborts, and empty/partial responses are
+    // all transient — worth a retry and/or provider fallback.
     if (
       message.includes('econnrefused') ||
       message.includes('econnreset') ||
       message.includes('etimedout') ||
       message.includes('fetch failed') ||
       message.includes('network') ||
-      message.includes('socket')
+      message.includes('socket') ||
+      message.includes('abort') ||
+      message.includes('timeout') ||
+      message.includes('timed out') ||
+      message.includes('empty response')
     ) {
+      return true;
+    }
+  }
+
+  // AbortError (from the timeout AbortController)
+  if (error && typeof error === 'object' && 'name' in error) {
+    const name = (error as { name?: unknown }).name;
+    if (name === 'AbortError' || name === 'APIUserAbortError') {
       return true;
     }
   }
@@ -330,11 +343,13 @@ export async function generateText(
       throw new Error(`Groq text generation failed: ${reason}`);
     }
 
-    // Attempt 2: Retry Groq once on other transient failures (5xx, network)
+    // Attempt 2: Retry Groq once on other transient failures (5xx, network,
+    // timeout/abort, empty response).
+    console.warn('[ai-client] Groq transient error, retrying once...');
     try {
       return await callGroq(messages, resolvedOptions, config.GROQ_API_KEY);
     } catch (retryError) {
-      // If retry also hits rate limit, fall back to Gemini
+      // If retry hit rate limit, fall back to Gemini
       if (isRateLimitError(retryError)) {
         console.warn('[ai-client] Groq rate-limited on retry. Switching to Gemini.');
         try {
@@ -348,6 +363,19 @@ export async function generateText(
           throw new Error(`Rate limited on both Groq and Gemini.${retryMsg}`);
         }
       }
+
+      // Retry also failed transiently (e.g. repeated timeout/abort/empty) —
+      // fall back to Gemini so a slow Groq doesn't fail the whole request.
+      if (isTransientError(retryError)) {
+        console.warn('[ai-client] Groq still failing after retry. Switching to Gemini.');
+        try {
+          return await callGeminiText(messages, resolvedOptions, config.GEMINI_API_KEY);
+        } catch (geminiError) {
+          const reason = geminiError instanceof Error ? geminiError.message : String(geminiError);
+          throw new Error(`Text generation failed on both providers: ${reason}`);
+        }
+      }
+
       const reason = retryError instanceof Error ? retryError.message : String(retryError);
       throw new Error(`Groq text generation failed: ${reason}`);
     }

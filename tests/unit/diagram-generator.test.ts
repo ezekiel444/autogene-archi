@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { GenerationContext, DiagramType, OutputFormat } from '@/types/index.js';
+import { DIAGRAM_GENERATION_TIMEOUT_MS } from '@/types/index.js';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ describe('Diagram Generator', () => {
       expect(mockGenerateText).toHaveBeenCalledWith(
         expect.any(Array),
         expect.objectContaining({
-          timeoutMs: 30_000,
+          timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
         }),
       );
     });
@@ -443,7 +444,7 @@ describe('Diagram Generator', () => {
       expect(mockGenerateText).toHaveBeenCalledWith(
         expect.any(Array),
         expect.objectContaining({
-          timeoutMs: 30_000,
+          timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
         }),
       );
     });

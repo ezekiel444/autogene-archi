@@ -190,37 +190,54 @@ describe('AI Client - generateText', () => {
       (error500 as any).status = 500;
 
       mockGroqCreate.mockRejectedValue(error500);
+      // Gemini also fails so we can assert the combined-failure message.
+      mockGeminiGenerateContent.mockRejectedValue(new Error('Gemini down'));
 
       await expect(generateText(sampleMessages)).rejects.toThrow(
-        'Groq text generation failed: Server Error',
+        'Text generation failed on both providers',
       );
-      // Transient: Groq called twice (initial + retry), Gemini never called
+      // Transient: Groq called twice (initial + retry), then Gemini fallback.
       expect(mockGroqCreate).toHaveBeenCalledTimes(2);
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
+    });
+
+    it('falls back to Gemini when Groq keeps failing transiently', async () => {
+      const error500 = new Error('Server Error');
+      (error500 as any).status = 500;
+
+      mockGroqCreate.mockRejectedValue(error500);
+      mockGeminiGenerateContent.mockResolvedValue({ text: 'gemini result' });
+
+      const result = await generateText(sampleMessages);
+      expect(result).toBe('gemini result');
+      expect(mockGroqCreate).toHaveBeenCalledTimes(2);
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
     });
   });
 
   describe('empty response handling', () => {
-    it('throws with provider name when Groq returns empty content', async () => {
+    it('treats an empty Groq response as transient and falls back to Gemini', async () => {
       mockGroqCreate.mockResolvedValue({
         choices: [{ message: { content: '' } }],
       });
+      mockGeminiGenerateContent.mockResolvedValue({ text: 'gemini fallback' });
 
-      await expect(generateText(sampleMessages)).rejects.toThrow(
-        'Groq text generation failed: Groq returned an empty response',
-      );
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      const result = await generateText(sampleMessages);
+      expect(result).toBe('gemini fallback');
+      // Groq attempted twice (initial + retry), then Gemini.
+      expect(mockGroqCreate).toHaveBeenCalledTimes(2);
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
     });
 
-    it('throws with provider name when Groq returns null content', async () => {
+    it('treats a null Groq response as transient and falls back to Gemini', async () => {
       mockGroqCreate.mockResolvedValue({
         choices: [{ message: { content: null } }],
       });
+      mockGeminiGenerateContent.mockResolvedValue({ text: 'gemini fallback' });
 
-      await expect(generateText(sampleMessages)).rejects.toThrow(
-        'Groq text generation failed: Groq returned an empty response',
-      );
-      expect(mockGeminiGenerateContent).not.toHaveBeenCalled();
+      const result = await generateText(sampleMessages);
+      expect(result).toBe('gemini fallback');
+      expect(mockGeminiGenerateContent).toHaveBeenCalled();
     });
   });
 
