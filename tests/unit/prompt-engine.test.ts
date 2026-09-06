@@ -72,6 +72,11 @@ describe('PromptEngine - validateInput', () => {
   });
 
   describe('output format validation', () => {
+    it('accepts valid output format "node-graph"', () => {
+      const result = validateInput({ prompt: 'Draw a diagram', outputFormat: 'node-graph' });
+      expect(result.isValid).toBe(true);
+    });
+
     it('accepts valid output format "mermaid"', () => {
       const result = validateInput({ prompt: 'Draw a diagram', outputFormat: 'mermaid' });
       expect(result.isValid).toBe(true);
@@ -568,7 +573,7 @@ describe('PromptEngine - submitRequest', () => {
     );
 
     expect(result.outputType).toBe('diagram');
-    expect(result.format).toBe('mermaid');
+    expect(result.format).toBe('node-graph');
     expect(result.sessionId).toBe('diagram-session');
     expect(mockSessionManager.addExchange).toHaveBeenCalledOnce();
   });

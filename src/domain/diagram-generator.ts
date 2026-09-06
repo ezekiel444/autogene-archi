@@ -26,7 +26,7 @@ import {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const DEFAULT_FORMAT: OutputFormat = 'mermaid';
+const DEFAULT_FORMAT: OutputFormat = 'node-graph';
 const DEFAULT_TEMPERATURE = 0.4;
 const DEFAULT_MAX_TOKENS = 4096;
 
@@ -240,6 +240,25 @@ function safeParseDiagramGraph(jsonStr: string): ParsedDiagramGraph | null {
 }
 
 /**
+ * Determines whether a content string is a diagram-shaped node/connection graph
+ * (i.e. `{ "nodes": [...], "connections": [...] }`) that the interactive diagram
+ * canvas can render.
+ *
+ * This is the source of truth the API uses to decide whether generated content
+ * should be delivered as a diagram, regardless of how the prompt was classified.
+ * The frontend only renders content as a diagram when `outputType === 'diagram'`
+ * AND the content parses as this graph shape, so a content-based check keeps the
+ * two in sync and prevents architecture JSON from being shown as raw text.
+ *
+ * Requires at least one valid node so that empty objects or unrelated JSON do
+ * not falsely register as diagrams.
+ */
+export function isDiagramGraphContent(content: string): boolean {
+  const parsed = safeParseDiagramGraph(content);
+  return parsed !== null && parsed.nodes.length > 0;
+}
+
+/**
  * Analyzes connectivity of a parsed diagram graph.
  * - orphanNodeIds: nodes with zero incident edges
  * - componentCount: number of connected components in the undirected graph
@@ -352,22 +371,6 @@ function inferDiagramTypeFromJSON(jsonStr: string): DiagramType | undefined {
     }
   }
   return undefined;
-}
-
-/**
- * Legacy no-op: kept for backward compatibility.
- * Previously fixed architecture-beta syntax; now a no-op since we output JSON.
- */
-function fixArchitectureBetaSyntax(code: string): string {
-  return code;
-}
-
-/**
- * Legacy no-op: kept for backward compatibility.
- * Previously fixed Mermaid syntax; now a no-op since we output JSON.
- */
-function fixCommonMermaidSyntax(code: string): string {
-  return code;
 }
 
 // ─── Available Icons ─────────────────────────────────────────────────────────
@@ -930,10 +933,6 @@ function parseAIResponse(
   if (!resolvedType) {
     resolvedType = 'flowchart';
   }
-
-  // Legacy no-ops (kept for backward compatibility)
-  code = fixArchitectureBetaSyntax(code);
-  code = fixCommonMermaidSyntax(code);
 
   return {
     code,

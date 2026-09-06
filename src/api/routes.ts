@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateInput, classifyPrompt } from '../application/prompt-engine.js';
 import { SessionManager } from '../application/session-manager.js';
 import { TemplateManager } from '../application/template-manager.js';
-import { generate as generateDiagram, refine as refineDiagram } from '../domain/diagram-generator.js';
+import { generate as generateDiagram, refine as refineDiagram, isDiagramGraphContent } from '../domain/diagram-generator.js';
 import { generate as generateDocument, refine as refineDocument } from '../domain/document-generator.js';
 import { validateAll as validateAttachments, process as processAttachment } from '../domain/attachment-processor.js';
 import type {
@@ -195,6 +195,13 @@ router.post('/api/generate', async (req: Request, res: Response) => {
       }
     } else if (classification.type === 'document') {
       outputType = 'document';
+    } else if (classification.inferredDiagramType) {
+      // Ambiguous but a diagram type was inferred — treat as a diagram so the
+      // node/connection graph renders on the canvas instead of as raw text.
+      outputType = 'diagram';
+      if (!generationRequest.diagramType) {
+        generationRequest.diagramType = classification.inferredDiagramType;
+      }
     } else {
       // Ambiguous — default to document for API (UI would ask user)
       outputType = 'document';
@@ -265,20 +272,39 @@ router.post('/api/generate', async (req: Request, res: Response) => {
         ? await refineDocument(body.prompt, lastContent, context)
         : await generateDocument(body.prompt, context);
 
-      // Create or use existing session
-      if (!sessionId) {
-        const newSession = await sessionManager.createSession('document');
-        sessionId = newSession.id;
-      }
+      // Safety net: if the "document" content is actually a diagram graph
+      // (nodes/connections JSON), deliver it as a diagram so the frontend
+      // renders it on the canvas rather than printing raw JSON in the editor.
+      if (isDiagramGraphContent(result.content)) {
+        if (!sessionId) {
+          const newSession = await sessionManager.createSession('diagram');
+          sessionId = newSession.id;
+        }
 
-      response = {
-        content: result.content,
-        outputType: 'document',
-        format: result.documentType,
-        documentType: result.documentType,
-        sessionId,
-        exchangeIndex: sessionHistory ? sessionHistory.length : 0,
-      };
+        response = {
+          content: result.content,
+          outputType: 'diagram',
+          format: context.outputFormat ?? 'node-graph',
+          diagramType: generationRequest.diagramType,
+          sessionId,
+          exchangeIndex: sessionHistory ? sessionHistory.length : 0,
+        };
+      } else {
+        // Create or use existing session
+        if (!sessionId) {
+          const newSession = await sessionManager.createSession('document');
+          sessionId = newSession.id;
+        }
+
+        response = {
+          content: result.content,
+          outputType: 'document',
+          format: result.documentType,
+          documentType: result.documentType,
+          sessionId,
+          exchangeIndex: sessionHistory ? sessionHistory.length : 0,
+        };
+      }
     }
 
     // 9. Add exchange to session
