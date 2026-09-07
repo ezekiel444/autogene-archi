@@ -1,6 +1,11 @@
 Option 2 – AI Document Processing
 
-Design a multi-cloud document processing platform where users upload PDFs to AWS S3, Azure Functions extract and process text, and GCP BigQuery stores analytics and reporting data. Kubernetes should orchestrate all microservices. Include authentication, message queues, monitoring, logging, and high availability.
+Design a multi-cloud document processing platform where users upload PDFs to AWS S3,
+ Azure Functions extract and process text, and GCP BigQuery stores analytics and reporting data. 
+ Kubernetes should orchestrate all microservices.
+  Include authentication, message queues, monitoring, logging, and high availability.
+
+  
 
 Option 3 – IoT Analytics
 
@@ -13,3 +18,24 @@ Design a multi-cloud DevOps platform using AWS S3 for artifact storage, Azure Fu
 Option 5 – Medium Complexity
 
 Design a multi-cloud video streaming platform using AWS S3 for video storage, Azure Functions for video transcoding workflows, and GCP BigQuery for viewer analytics. Kubernetes should host the application services. Include CDN integration, authentication, monitoring, autoscaling, backup strategies, and disaster recovery across all clouds.
+
+
+SIMPLE ARCHI
+
+Serverless E-Commerce Order Pipeline
+Scenario: Design a Black Friday-ready order system handling 10,000+ orders/minute.
+Key Components:
+API Gateway + Lambda/Cloud Functions/Azure Functions for order ingestion
+SQS/PubSub/Event Grid for async processing
+DynamoDB/Firestore/Cosmos DB for order state
+Step Functions/Logic Apps for order workflow (payment → inventory → shipping)
+Constraints: Must handle duplicate orders, maintain idempotency, and keep costs under $0.001 per order during normal traffic.
+
+
+
+COMPLEX MULTI-CLOUD ARCHI
+
+
+Design a multi-cloud DevOps platform using AWS S3 for artifact storage, 
+Azure Functions for automation tasks, and GCP BigQuery for deployment analytics.
+ Deploy applications on Kubernetes and include GitOps, CI/CD, monitoring, logging, secrets management, and multi-region failover.
