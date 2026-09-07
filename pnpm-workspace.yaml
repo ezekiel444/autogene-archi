@@ -1,3 +1,8 @@
+# pnpm workspace: the frontend is a member package so a single root install
+# resolves both the backend (root) and frontend dependencies.
+packages:
+  - frontend
+
 # Dependencies allowed to run install/build scripts.
 # pnpm 11+ blocks build scripts by default and fails CI installs with
 # ERR_PNPM_IGNORED_BUILDS. `allowBuilds` (replaces the old onlyBuiltDependencies)

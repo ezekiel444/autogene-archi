@@ -1,5 +1,8 @@
 [build]
-  command = "cd frontend && pnpm install && pnpm run build"
+  # Install the whole pnpm workspace (backend + frontend) from the repo root,
+  # then build the frontend workspace package into ../public. Installing from
+  # frontend/ alone is a no-op in a workspace and leaves Vite unavailable.
+  command = "pnpm install && pnpm --filter ai-diagram-frontend run build"
   publish = "public"
   functions = "netlify/functions"
 
