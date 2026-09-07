@@ -1,4 +1,8 @@
+# Dependencies allowed to run install/build scripts.
+# pnpm 11+ blocks build scripts by default and fails CI installs with
+# ERR_PNPM_IGNORED_BUILDS. `allowBuilds` (replaces the old onlyBuiltDependencies)
+# maps each dependency to true (allowed) or false (blocked).
 allowBuilds:
-  '@google/genai': set this to true or false
-  esbuild: set this to true or false
-  protobufjs: set this to true or false
+  '@google/genai': true
+  esbuild: true
+  protobufjs: true
