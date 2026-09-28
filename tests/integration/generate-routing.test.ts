@@ -166,6 +166,26 @@ describe('POST /api/generate — architecture routing', () => {
     expect(parsed.nodes.length).toBeGreaterThan(0);
   });
 
+  it('does not classify incomplete graph-shaped JSON as a diagram', async () => {
+    mockClassify.mockResolvedValue({
+      type: 'document',
+      confidence: 0.9,
+      inferredDiagramType: undefined,
+      inferredDocumentType: 'design-document',
+    });
+    mockGenerateDocument.mockResolvedValue({
+      content: JSON.stringify({ nodes: [{ id: 'incomplete' }] }),
+      documentType: 'design-document',
+    } as never);
+
+    const res = await request(app)
+      .post('/api/generate')
+      .send({ prompt: 'describe the system' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.outputType).toBe('document');
+  });
+
   it('still returns a document for genuine prose content', async () => {
     mockClassify.mockResolvedValue({
       type: 'document',

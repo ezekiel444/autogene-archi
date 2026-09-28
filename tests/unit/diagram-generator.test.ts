@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { GenerationContext, DiagramType, OutputFormat } from '@/types/index.js';
 import { DIAGRAM_GENERATION_TIMEOUT_MS } from '@/types/index.js';
+import { parseDiagramGraph } from '../../frontend/src/utils/parseDiagramGraph';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -622,14 +623,28 @@ describe('Diagram Generator — connectivity enforcement', () => {
     expect(codes).toContain('DIAGRAM_ISOLATED_NODES');
   });
 
-  it('does not run connectivity logic on raw-text fallback (malformed JSON)', async () => {
-    mockGenerateText.mockResolvedValue('this is not json at all');
+  it('retries malformed output and returns the corrected diagram', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce('this is not json at all')
+      .mockResolvedValueOnce(SIMPLE_DIAGRAM_JSON);
 
     const result = await generate('Make a diagram', { diagramType: 'flowchart' });
 
-    // Only the original AI call — no second repair attempt.
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
-    expect(result.code).toBe('this is not json at all');
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText.mock.calls[1][0][1].content).toContain('Previous response that needs correction');
+    expect(result.code).toBe(SIMPLE_DIAGRAM_JSON);
+    expect(parseDiagramGraph(result.code)).toEqual(JSON.parse(SIMPLE_DIAGRAM_JSON));
+  });
+
+  it('rejects output when both the initial response and correction are invalid', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce('this is not json at all')
+      .mockResolvedValueOnce(JSON.stringify({ nodes: [], connections: [], groups: [] }));
+
+    await expect(
+      generate('Make a diagram', { diagramType: 'flowchart' }),
+    ).rejects.toThrow('did not return a renderable diagram after one correction attempt');
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
   });
 });
 

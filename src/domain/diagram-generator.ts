@@ -239,6 +239,68 @@ function safeParseDiagramGraph(jsonStr: string): ParsedDiagramGraph | null {
   }
 }
 
+function isRenderableDiagramGraphContent(jsonStr: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(jsonStr);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false;
+
+    const graph = parsed as {
+      nodes?: unknown;
+      connections?: unknown;
+      groups?: unknown;
+    };
+    if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return false;
+    if (!Array.isArray(graph.connections)) return false;
+    if (graph.groups !== undefined && !Array.isArray(graph.groups)) return false;
+
+    const nodeIds = new Set<string>();
+    for (const node of graph.nodes) {
+      if (typeof node !== 'object' || node === null || Array.isArray(node)) return false;
+      const candidate = node as Record<string, unknown>;
+      if (
+        typeof candidate.id !== 'string' || candidate.id.trim() === '' ||
+        nodeIds.has(candidate.id) ||
+        typeof candidate.label !== 'string' || candidate.label.trim() === '' ||
+        typeof candidate.icon !== 'string' || candidate.icon.trim() === '' ||
+        typeof candidate.x !== 'number' || !Number.isFinite(candidate.x) ||
+        typeof candidate.y !== 'number' || !Number.isFinite(candidate.y) ||
+        (candidate.group !== undefined && typeof candidate.group !== 'string')
+      ) {
+        return false;
+      }
+      nodeIds.add(candidate.id);
+    }
+
+    for (const connection of graph.connections) {
+      if (typeof connection !== 'object' || connection === null || Array.isArray(connection)) return false;
+      const candidate = connection as Record<string, unknown>;
+      if (
+        typeof candidate.from !== 'string' || !nodeIds.has(candidate.from) ||
+        typeof candidate.to !== 'string' || !nodeIds.has(candidate.to) ||
+        (candidate.label !== undefined && typeof candidate.label !== 'string')
+      ) {
+        return false;
+      }
+    }
+
+    for (const group of graph.groups ?? []) {
+      if (typeof group !== 'object' || group === null || Array.isArray(group)) return false;
+      const candidate = group as Record<string, unknown>;
+      if (
+        typeof candidate.id !== 'string' || candidate.id.trim() === '' ||
+        typeof candidate.label !== 'string' || candidate.label.trim() === '' ||
+        typeof candidate.color !== 'string' || !/^#[\da-f]{6}$/i.test(candidate.color)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Determines whether a content string is a diagram-shaped node/connection graph
  * (i.e. `{ "nodes": [...], "connections": [...] }`) that the interactive diagram
@@ -254,8 +316,7 @@ function safeParseDiagramGraph(jsonStr: string): ParsedDiagramGraph | null {
  * not falsely register as diagrams.
  */
 export function isDiagramGraphContent(content: string): boolean {
-  const parsed = safeParseDiagramGraph(content);
-  return parsed !== null && parsed.nodes.length > 0;
+  return isRenderableDiagramGraphContent(content);
 }
 
 /**
@@ -403,21 +464,7 @@ export async function generate(
   // Build user prompt
   const userPrompt = buildGenerateUserPrompt(prompt, context);
 
-  // Call AI
-  const aiResponse = await generateText(
-    [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    {
-      timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
-      temperature: DEFAULT_TEMPERATURE,
-      maxTokens: DEFAULT_MAX_TOKENS,
-    },
-  );
-
-  // Parse response
-  const initial = parseAIResponse(aiResponse, format, diagramType);
+  const initial = await generateRenderableDiagram(systemPrompt, userPrompt, format, diagramType);
 
   // Connectivity safety net: orphan detection + at most one repair pass
   return enforceConnectivity(initial, format, diagramType);
@@ -445,22 +492,52 @@ export async function refine(
   // Build user prompt
   const userPrompt = buildRefineUserPrompt(prompt, existingCode, context);
 
-  // Call AI
-  const aiResponse = await generateText(
-    [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    {
-      timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
-      temperature: DEFAULT_TEMPERATURE,
-      maxTokens: DEFAULT_MAX_TOKENS,
-    },
-  );
-
-  // Parse response
-  const initial = parseAIResponse(aiResponse, format, diagramType);
+  const initial = await generateRenderableDiagram(systemPrompt, userPrompt, format, diagramType);
   return enforceConnectivity(initial, format, diagramType);
+}
+
+async function generateRenderableDiagram(
+  systemPrompt: string,
+  userPrompt: string,
+  format: OutputFormat,
+  diagramType: DiagramType | undefined,
+): Promise<DiagramResult> {
+  let previousResponse = '';
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const retrying = attempt > 0;
+    const messages = retrying
+      ? [
+          {
+            role: 'system' as const,
+            content: `${systemPrompt}\n\nYour previous answer was rejected. Return only a complete, renderable JSON node graph with nodes, connections, and groups.`,
+          },
+          {
+            role: 'user' as const,
+            content: `${userPrompt}\n\nPrevious response that needs correction:\n${previousResponse.slice(0, 12000)}\n\nCorrect it to match the required graph schema. Every node needs a unique id, label, icon, and finite x/y coordinates. Connections must reference existing node ids. Return only valid JSON.`,
+          },
+        ]
+      : [
+          { role: 'system' as const, content: systemPrompt },
+          { role: 'user' as const, content: userPrompt },
+        ];
+
+    const aiResponse = await generateText(messages, {
+      timeoutMs: DIAGRAM_GENERATION_TIMEOUT_MS,
+      temperature: retrying ? 0.2 : DEFAULT_TEMPERATURE,
+      maxTokens: DEFAULT_MAX_TOKENS,
+    });
+
+    try {
+      return parseAIResponse(aiResponse, format, diagramType);
+    } catch {
+      previousResponse = aiResponse;
+    }
+  }
+
+  throw new Error(
+    'Diagram generation failed: the AI did not return a renderable diagram after one correction attempt. Please try again with a more specific prompt.',
+  );
 }
 
 // ─── Connectivity Repair Pipeline ────────────────────────────────────────────
@@ -900,33 +977,15 @@ function parseAIResponse(
   format: OutputFormat,
   diagramType: DiagramType | undefined,
 ): DiagramResult {
-  let code: string;
+  const code = extractJSON(aiResponse);
   let resolvedType = diagramType;
 
-  try {
-    // Extract and validate JSON from the response
-    code = extractJSON(aiResponse);
+  if (!isRenderableDiagramGraphContent(code)) {
+    throw new Error('AI response does not match the renderable diagram schema');
+  }
 
-    // If no diagram type was specified, try to infer from JSON
-    if (!resolvedType) {
-      resolvedType = inferDiagramTypeFromJSON(code);
-    }
-  } catch {
-    // If JSON extraction fails, return the raw response stripped of fences
-    // (allows graceful degradation)
-    code = stripCodeFences(aiResponse);
-
-    // Legacy inference from DiagramType: line
-    if (!resolvedType) {
-      const typeRegex = /DiagramType:\s*(\S+)/i;
-      const match = code.match(typeRegex);
-      if (match) {
-        const candidate = match[1].toLowerCase().trim();
-        if (SUPPORTED_DIAGRAM_TYPES.includes(candidate as DiagramType)) {
-          resolvedType = candidate as DiagramType;
-        }
-      }
-    }
+  if (!resolvedType) {
+    resolvedType = inferDiagramTypeFromJSON(code);
   }
 
   // Default to flowchart if inference failed

@@ -558,8 +558,14 @@ describe('PromptEngine - submitRequest', () => {
   });
 
   it('routes diagram requests to diagram generator when diagramType is specified', async () => {
-    // Mock AI to return diagram code
-    mockGenerateText.mockResolvedValue('graph TD\n  A --> B');
+    mockGenerateText.mockResolvedValue(JSON.stringify({
+      nodes: [
+        { id: 'start', label: 'Start', icon: 'default', x: 100, y: 100 },
+        { id: 'end', label: 'End', icon: 'default', x: 350, y: 100 },
+      ],
+      connections: [{ from: 'start', to: 'end', label: 'Next' }],
+      groups: [],
+    }));
 
     const mockSessionManager = {
       createSession: vi.fn().mockResolvedValue({ id: 'diagram-session', exchanges: [], outputType: 'diagram', currentVersion: 0, createdAt: new Date(), updatedAt: new Date() }),
