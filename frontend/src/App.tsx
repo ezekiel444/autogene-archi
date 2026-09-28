@@ -5,66 +5,17 @@ import { DiagramCanvas } from './components/DiagramCanvas';
 import { DiagramErrorBoundary } from './components/DiagramErrorBoundary';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { useGenerate } from './hooks/useGenerate';
+import { parseDiagramGraph, type DiagramData } from './utils/parseDiagramGraph';
 
 export type Mode = 'diagram' | 'document';
-
-export interface DiagramData {
-  nodes: Array<{
-    id: string;
-    label: string;
-    icon: string;
-    group?: string;
-    x: number;
-    y: number;
-  }>;
-  connections: Array<{
-    from: string;
-    to: string;
-    label?: string;
-    color?: string;
-    arrowStyle?: 'closed' | 'open' | 'none';
-  }>;
-  groups: Array<{
-    id: string;
-    label: string;
-    color: string;
-  }>;
-}
-
-/**
- * Returns the parsed node-graph if `content` is a diagram payload
- * (`{ nodes: [...], connections: [...] }` with at least one valid node),
- * otherwise null. Used to render diagrams by content shape rather than
- * relying solely on the API's outputType label.
- */
-function parseDiagramGraph(content: string): DiagramData | null {
-  if (!content) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    return null;
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return null;
-  }
-  const obj = parsed as { nodes?: unknown; connections?: unknown };
-  if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return null;
-  const hasValidNode = obj.nodes.some(
-    (n) => typeof n === 'object' && n !== null && typeof (n as { id?: unknown }).id === 'string',
-  );
-  if (!hasValidNode) return null;
-  // connections is optional but must be an array when present.
-  if (obj.connections !== undefined && !Array.isArray(obj.connections)) return null;
-  return parsed as DiagramData;
-}
+export type { DiagramData } from './utils/parseDiagramGraph';
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('diagram');
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
   const [documentContent, setDocumentContent] = useState<string>('');
 
-  const { generate, isLoading, error } = useGenerate();
+  const { generate, isLoading, error, setError } = useGenerate();
 
   const showDiagram = (data: DiagramData) => {
     setDiagramData(data);
@@ -89,10 +40,8 @@ export default function App() {
       return;
     }
 
-    if (result.outputType === 'diagram') {
-      // outputType says diagram but content isn't a parseable graph — surface
-      // the raw content in the editor so nothing is silently lost.
-      showDocument(result.content);
+    if (mode === 'diagram' || result.outputType === 'diagram') {
+      setError('The response did not contain a renderable diagram. Please try again.');
       return;
     }
 

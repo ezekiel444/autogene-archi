@@ -54,5 +54,5 @@ export function useGenerate() {
     }
   };
 
-  return { generate, isLoading, error };
+  return { generate, isLoading, error, setError };
 }
